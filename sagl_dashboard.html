@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stone Arch Golf League — 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-dark: #1a3a2a;
+    --green-mid: #2d5a3d;
+    --green-light: #3d7a52;
+    --green-pale: #e8f3ec;
+    --gold: #c9a84c;
+    --gold-light: #f0d080;
+    --gold-pale: #fdf8ee;
+    --cream: #faf8f3;
+    --charcoal: #2a2a2a;
+    --mid-gray: #666;
+    --light-gray: #e5e5e0;
+    --border: #d4d0c8;
+    --white: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--charcoal);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .site-header {
+    background: var(--green-dark);
+    color: var(--white);
+    text-align: center;
+    padding: 2.5rem 1rem 2rem;
+    border-bottom: 3px solid var(--gold);
+    position: relative;
+    overflow: hidden;
+  }
+  .site-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 40px,
+      rgba(201,168,76,0.04) 40px,
+      rgba(201,168,76,0.04) 41px
+    );
+    pointer-events: none;
+  }
+  .header-eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 0.4rem;
+  }
+  .header-sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 300;
+    letter-spacing: 0.05em;
+  }
+  .champion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 1rem;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 100px;
+    padding: 5px 16px;
+    font-size: 12px;
+    color: var(--gold-light);
+    font-weight: 400;
+  }
+
+  /* NAV */
+  nav {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .nav-btn {
+    padding: 0.9rem 1.4rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mid-gray);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .nav-btn:hover { color: var(--green-mid); }
+  .nav-btn.active {
+    color: var(--green-dark);
+    border-bottom-color: var(--gold);
+    font-weight: 500;
+  }
+
+  /* MAIN */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* STAT CARDS ROW */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--green-dark);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid-gray);
+  }
+
+  /* SECTION TITLES */
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .dot {
+    width: 8px; height: 8px;
+    background: var(--gold);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; margin-bottom: 2rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead th {
+    background: var(--green-dark);
+    color: var(--white);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  thead th:first-child { border-radius: 6px 0 0 0; }
+  thead th:last-child { border-radius: 0 6px 0 0; }
+  tbody tr { border-bottom: 1px solid var(--light-gray); }
+  tbody tr:hover { background: var(--green-pale); }
+  tbody td { padding: 10px 14px; color: var(--charcoal); }
+  tbody tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+  tbody tr:hover td { background: var(--green-pale) !important; }
+
+  .rank-cell {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--green-mid);
+    width: 36px;
+  }
+  .rank-cell.gold { color: var(--gold); }
+  .rank-cell.silver { color: #888; }
+  .rank-cell.bronze { color: #a0522d; }
+
+  .hdcp-pill {
+    display: inline-block;
+    background: var(--green-pale);
+    color: var(--green-dark);
+    border-radius: 100px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .team-name {
+    font-weight: 500;
+    color: var(--green-dark);
+  }
+
+  /* SCHEDULE GRID */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 2rem;
+  }
+  .week-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .week-header {
+    background: var(--green-dark);
+    color: var(--white);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .week-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .week-course {
+    font-size: 11px;
+    color: var(--gold-light);
+    font-weight: 400;
+  }
+  .week-scramble .week-header { background: var(--gold); }
+  .week-scramble .week-num, .week-scramble .week-course { color: var(--green-dark); }
+  .matchup-list { padding: 10px 0; }
+  .matchup-row {
+    padding: 6px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+  }
+  .matchup-row:hover { background: var(--green-pale); }
+  .matchup-t1 { color: var(--charcoal); font-weight: 400; }
+  .matchup-vs { color: var(--mid-gray); font-size: 10px; text-align: center; font-weight: 500; letter-spacing: 0.05em; }
+  .matchup-t2 { color: var(--charcoal); font-weight: 400; text-align: right; }
+
+  /* PLAYER CARDS */
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+  .player-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .player-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--green-dark);
+    color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .player-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .player-team { font-size: 11px; color: var(--mid-gray); margin-bottom: 8px; }
+  .player-hdcp-row { display: flex; align-items: center; gap: 8px; }
+  .player-hdcp-label { font-size: 11px; color: var(--mid-gray); }
+
+  /* PAYOUTS */
+  .payout-table-wrap { max-width: 560px; margin-bottom: 2rem; }
+  .payout-cat { background: var(--gold-pale) !important; }
+  .payout-cat td { font-weight: 500; color: var(--green-dark) !important; }
+  .payout-total {
+    background: var(--green-dark) !important;
+  }
+  .payout-total td { color: var(--white) !important; font-weight: 600; }
+
+  /* SIDE GAMES */
+  .side-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 2rem;
+  }
+  .side-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+  }
+  .side-card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    margin-bottom: 0.4rem;
+  }
+  .side-card-pot {
+    font-size: 1.6rem;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 0.3rem;
+  }
+  .side-card-desc { font-size: 12px; color: var(--mid-gray); line-height: 1.5; }
+
+  /* RULES SECTION */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 2rem;
+  }
+  .rule-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+  }
+  .rule-card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green-dark);
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .rule-card-title .icon {
+    width: 20px; height: 20px;
+    background: var(--green-pale);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: var(--green-dark);
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+  .rule-card-body { font-size: 12.5px; color: var(--mid-gray); line-height: 1.6; }
+  .rule-card-body strong { color: var(--charcoal); font-weight: 500; }
+
+  /* LOADING */
+  .loading-msg {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--mid-gray);
+    font-size: 14px;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--light-gray);
+    border-top-color: var(--green-mid);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FOOTER */
+  .site-footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    background: var(--green-dark);
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border-top: 3px solid var(--gold);
+  }
+  .site-footer strong { color: var(--gold); font-weight: 500; }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .stat-value { font-size: 1.8rem; }
+    nav { justify-content: flex-start; }
+    .nav-btn { padding: 0.8rem 0.9rem; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-eyebrow">Season Four · 2026</div>
+  <div class="header-title">Stone Arch Golf League</div>
+  <div class="header-sub">2v2 Match Play &nbsp;·&nbsp; 8 Teams &nbsp;·&nbsp; 8 Weeks</div>
+  <div><span class="champion-badge">🏆 Reigning Champions: Hopkins &amp; Mugford</span></div>
+</header>
+
+<nav id="main-nav" role="navigation" aria-label="Main navigation">
+  <button class="nav-btn active" data-tab="standings">Standings</button>
+  <button class="nav-btn" data-tab="schedule">Schedule</button>
+  <button class="nav-btn" data-tab="players">Players</button>
+  <button class="nav-btn" data-tab="sidegames">Side Games</button>
+  <button class="nav-btn" data-tab="payouts">Payouts</button>
+  <button class="nav-btn" data-tab="rules">Rules</button>
+</nav>
+
+<main>
+
+  <!-- STANDINGS TAB -->
+  <div class="tab-content active" id="tab-standings">
+    <div class="stat-row" id="stat-row">
+      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Teams</div></div>
+      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Weeks</div></div>
+      <div class="stat-card"><div class="stat-value">$250</div><div class="stat-label">Buy-in</div></div>
+      <div class="stat-card"><div class="stat-value">$4,000</div><div class="stat-label">Prize Pool</div></div>
+    </div>
+
+    <div class="section-title"><span class="dot"></span>Season 1 Standings</div>
+    <div class="table-wrap">
+      <table id="s1-table">
+        <thead><tr>
+          <th>#</th><th>Team</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Points</th><th>Pts/Match</th>
+        </tr></thead>
+        <tbody id="s1-body">
+          <tr><td colspan="8" class="loading-msg"><div class="spinner"></div>Loading live data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Individual Stats — Season 1</div>
+    <div class="table-wrap">
+      <table id="ind-table">
+        <thead><tr>
+          <th>#</th><th>Player</th><th>Matches</th><th>W</th><th>L</th><th>Pts</th><th>Birdies</th><th>Pars</th><th>Bogeys</th><th>Doubles+</th>
+        </tr></thead>
+        <tbody id="ind-body">
+          <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCHEDULE TAB -->
+  <div class="tab-content" id="tab-schedule">
+    <div class="schedule-grid" id="schedule-grid">
+      <div class="loading-msg" style="grid-column:1/-1"><div class="spinner"></div>Loading schedule…</div>
+    </div>
+  </div>
+
+  <!-- PLAYERS TAB -->
+  <div class="tab-content" id="tab-players">
+    <div class="section-title"><span class="dot"></span>2026 League Directory</div>
+    <div class="table-wrap">
+      <table id="dir-table">
+        <thead><tr>
+          <th>Team</th><th>Player</th><th>Handicap</th><th>GHIN ID</th><th>Hdcp Paid</th><th>League Paid</th>
+        </tr></thead>
+        <tbody id="dir-body">
+          <tr><td colspan="6" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Current Handicap Index</div>
+    <div class="player-grid" id="player-grid">
+      <div class="loading-msg"><div class="spinner"></div>Loading…</div>
+    </div>
+  </div>
+
+  <!-- SIDE GAMES TAB -->
+  <div class="tab-content" id="tab-sidegames">
+    <div class="side-grid">
+      <div class="side-card">
+        <div class="side-card-title">Skins</div>
+        <div class="side-card-pot">$800</div>
+        <div class="side-card-desc">$100/week × 8 weeks. Par 3s &amp; 5s use gross scores; par 4s use net. Hole 1 is not eligible. Unclaimed weeks roll into Team of the Week.</div>
+      </div>
+      <div class="side-card">
+        <div class="side-card-title">Eagle Pot</div>
+        <div class="side-card-pot">$200</div>
+        <div class="side-card-desc">Season-long pot split equally among all gross eagles. If no eagles are made, the full $200 rolls to playoff champions.</div>
+      </div>
+      <div class="side-card">
+        <div class="side-card-title">Team of the Week</div>
+        <div class="side-card-pot">$400</div>
+        <div class="side-card-desc">$50/week to the team with the lowest combined net score. Ties split evenly. Half-strokes apply.</div>
+      </div>
+      <div class="side-card">
+        <div class="side-card-title">Individual Points Leader</div>
+        <div class="side-card-pot">$100</div>
+        <div class="side-card-desc">Most individual points across the full season wins. Awarded at season end.</div>
+      </div>
+    </div>
+
+    <div class="section-title"><span class="dot"></span>Skins Tracker</div>
+    <div class="table-wrap">
+      <table id="skins-table">
+        <thead><tr>
+          <th>#</th><th>Player</th><th>Gross Skins</th><th>Net Skins</th><th>Total</th><th>$</th>
+        </tr></thead>
+        <tbody id="skins-body">
+          <tr><td colspan="6" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Team of the Week Results</div>
+    <div class="table-wrap">
+      <table id="totw-table">
+        <thead><tr>
+          <th>Season</th><th>Week</th><th>Course</th><th>Winner / Low Net</th><th>Low Gross</th>
+        </tr></thead>
+        <tbody id="totw-body">
+          <tr><td colspan="5" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAYOUTS TAB -->
+  <div class="tab-content" id="tab-payouts">
+    <div class="section-title"><span class="dot"></span>Prize Structure — $4,000 Pool</div>
+    <div class="payout-table-wrap table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th>Award</th><th>Amount</th></tr></thead>
+        <tbody>
+          <tr class="payout-cat"><td colspan="3">Playoffs — $1,700</td></tr>
+          <tr><td></td><td>Champions</td><td style="font-weight:600; color:var(--gold)">$1,000</td></tr>
+          <tr><td></td><td>Runners-Up</td><td>$500</td></tr>
+          <tr><td></td><td>Semi-Finalists (×2)</td><td>$100 each / $50 per player</td></tr>
+          <tr class="payout-cat"><td colspan="3">Regular Season — $800</td></tr>
+          <tr><td></td><td>Season 1 Champion</td><td>$250</td></tr>
+          <tr><td></td><td>Season 1 Runner-Up</td><td>$100</td></tr>
+          <tr><td></td><td>Season 1 Third</td><td>$50</td></tr>
+          <tr><td></td><td>Season 2 Champion</td><td>$250</td></tr>
+          <tr><td></td><td>Season 2 Runner-Up</td><td>$100</td></tr>
+          <tr><td></td><td>Season 2 Third</td><td>$50</td></tr>
+          <tr class="payout-cat"><td colspan="3">Side Games — $1,500</td></tr>
+          <tr><td></td><td>Skins ($100/week × 8)</td><td>$800</td></tr>
+          <tr><td></td><td>Eagle Pot</td><td>$200</td></tr>
+          <tr><td></td><td>Team of the Week ($50/week × 8)</td><td>$400</td></tr>
+          <tr><td></td><td>Individual Points Leader</td><td>$100</td></tr>
+          <tr class="payout-total"><td colspan="2"><strong>Total Pool</strong></td><td><strong>$4,000</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Playoffs Format</div>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">6</span>Teams Qualify</div>
+        <div class="rule-card-body">Top 3 from Season 1 + Top 3 from Season 2 automatically qualify. Remaining spots filled by wild card (combined points).</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">↑</span>Seeds 1 &amp; 2 Bye</div>
+        <div class="rule-card-body">Top two seeds receive a first-round bye. Higher seed presents two course options; opponent chooses.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">⛳</span>Playoff Rounds</div>
+        <div class="rule-card-body">Each round is 9 or 18 holes at mutual discretion. Previous champions: Manske/Wesling ('23), Leadley/Mullins ('24), Hopkins/Mugford ('25).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES TAB -->
+  <div class="tab-content" id="tab-rules">
+    <div class="section-title"><span class="dot"></span>League Basics</div>
+    <div class="rules-grid" style="margin-bottom:2rem">
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">📋</span>Format</div>
+        <div class="rule-card-body"><strong>9-hole match play.</strong> Each player carries a USGA GHIN handicap. 10 points per match (1 per hole + 1 bonus for match winner, 0.5 each if tied). Low vs. low, high vs. high.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">½</span>Half-Strokes</div>
+        <div class="rule-card-body">Half-strokes are used to reduce ties and minimize rounding luck. Differential mapped using the USGA Course Handicap tool. E.g., 3.34–3.66 = 3.5 strokes.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">📱</span>Commissioner Notifications</div>
+        <div class="rule-card-body">Notify commissioner before your round (tee time, location, strokes, tees). Submit scorecard ASAP after round. Denote which tees you played from.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">🔢</span>Tiebreakers</div>
+        <div class="rule-card-body">Within a season: (1) head-to-head record, (2) coin flip. Playoff seeding: regular season standings → head-to-head → combined S1+S2 points → coin flip.</div>
+      </div>
+    </div>
+
+    <div class="section-title"><span class="dot"></span>Scramble Week (Week 4)</div>
+    <div class="rules-grid" style="margin-bottom:2rem">
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">⛳</span>Handicap</div>
+        <div class="rule-card-body">Team hdcp = <strong>35% of lower index + 15% of higher index</strong>. E.g., A=10, B=20 → (10×0.35)+(20×0.15) = 6.5.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">📍</span>Ball Placement</div>
+        <div class="rule-card-body">Off green: within one driver-length, no closer to hole, same area. On green: within one putter-head length of original spot.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">✓</span>Gimmes</div>
+        <div class="rule-card-body">Any putt within one putter-length (~3 ft) is conceded. No putter greater than 36" to measure. Can't concede par while birdie putt from same spot is pending.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">🚫</span>Other Rules</div>
+        <div class="rule-card-body">All OB played as penalty area. No mulligans. Eagle Pot does not apply; Team of the Week does. Takes place Week 4 to avoid affecting playoff qualification.</div>
+      </div>
+    </div>
+
+    <div class="section-title"><span class="dot"></span>Special Rules</div>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">🥞</span>Breakfast Balls (New 2026)</div>
+        <div class="rule-card-body">One free re-tee on <strong>hole 1 only</strong>. Must use second ball if taken. Both players must agree before teeing off. Hole 1 is ineligible for skins when breakfast balls are in play.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">📊</span>Handicap Adjustments (New 2026)</div>
+        <div class="rule-card-body">All 9-hole league rounds adjusted to an 18-hole equivalent + 1 stroke by commissioner in GHIN. Better reflects demonstrated competitive ability.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">❌</span>Unfinished Rounds</div>
+        <div class="rule-card-body">If 7+ holes completed, both teams may agree to end early. Unplayed holes scored as tied net pars. Each team gets +1 stroke for TOTW fairness.</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-card-title"><span class="icon">🚪</span>Forfeits</div>
+        <div class="rule-card-body">Non-forfeiting player gets full victory point. Forfeiting player: ghost score = course hdcp + 5 strokes (if index &lt;13.0) or +6 strokes (if ≥13.0).</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <strong>Stone Arch Golf League</strong> &nbsp;·&nbsp; 2026 Season Four &nbsp;·&nbsp; Data syncs live from Google Sheets
+</footer>
+
+<script>
+const SHEET_ID = '1mHyeZtbtBPXL48kBAFak6fFHLYw3EeYnFd5lBYOa5EA';
+const BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=`;
+
+function teamNames() {
+  return {
+    1: 'Hopkins & Mugford',
+    2: 'Leadley & Mullins',
+    3: 'Anderson & Bornhorst',
+    4: 'Wesling & Nelson',
+    5: 'Gallagher & Fischer',
+    6: 'Archer & Heinsch',
+    7: 'Bower & Petrovskis',
+    8: 'Oakman & Simpson'
+  };
+}
+
+async function fetchSheet(sheetName) {
+  const url = BASE + encodeURIComponent(sheetName);
+  const res = await fetch(url);
+  const text = await res.text();
+  const json = JSON.parse(text.substring(47).slice(0, -2));
+  return json.table;
+}
+
+function tableRows(table) {
+  if (!table || !table.rows) return [];
+  return table.rows.map(r => r.c ? r.c.map(c => c ? (c.v !== null && c.v !== undefined ? c.v : '') : '') : []);
+}
+
+function fmtPts(v) {
+  if (v === '' || v === null || v === undefined) return '—';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '—';
+  return n % 1 === 0 ? n.toString() : n.toFixed(1);
+}
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function rankClass(i) {
+  if (i === 0) return 'rank-cell gold';
+  if (i === 1) return 'rank-cell silver';
+  if (i === 2) return 'rank-cell bronze';
+  return 'rank-cell';
+}
+
+/* NAV */
+document.getElementById('main-nav').addEventListener('click', e => {
+  if (!e.target.dataset.tab) return;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+});
+
+/* STANDINGS */
+async function loadStandings() {
+  try {
+    const table = await fetchSheet('season1');
+    const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
+    const teams = teamNames();
+    rows.sort((a,b) => parseFloat(b[8] || 0) - parseFloat(a[8] || 0));
+    const tbody = document.getElementById('s1-body');
+    if (rows.every(r => parseFloat(r[8] || 0) === 0)) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Season 1 has not started yet — check back after Week 1!</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r, i) => {
+      const tNum = parseInt(r[0]);
+      const teamName = teams[tNum] || `Team ${tNum}`;
+      return `<tr>
+        <td class="${rankClass(i)}">${i+1}</td>
+        <td class="team-name">${teamName}</td>
+        <td>${fmtPts(r[3])}</td>
+        <td>${fmtPts(r[4])}</td>
+        <td>${fmtPts(r[5])}</td>
+        <td>${fmtPts(r[6])}</td>
+        <td><strong>${fmtPts(r[8])}</strong></td>
+        <td>${fmtPts(r[9])}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('s1-body').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
+  }
+}
+
+/* INDIVIDUAL STATS */
+async function loadIndividual() {
+  try {
+    const table = await fetchSheet('individual_s1');
+    const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
+    rows.sort((a,b) => parseFloat(b[5] || 0) - parseFloat(a[5] || 0));
+    const tbody = document.getElementById('ind-body');
+    if (rows.every(r => parseFloat(r[5] || 0) === 0)) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — waiting for Week 1.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r, i) => `<tr>
+      <td class="${rankClass(i)}">${i+1}</td>
+      <td class="team-name">${r[0]}</td>
+      <td>${fmtPts(r[1])}</td>
+      <td>${fmtPts(r[2])}</td>
+      <td>${fmtPts(r[3])}</td>
+      <td><strong>${fmtPts(r[5])}</strong></td>
+      <td>${fmtPts(r[11])}</td>
+      <td>${fmtPts(r[12])}</td>
+      <td>${fmtPts(r[13])}</td>
+      <td>${fmtPts(parseFloat(r[14]||0)+parseFloat(r[15]||0))}</td>
+    </tr>`).join('');
+  } catch(e) {
+    document.getElementById('ind-body').innerHTML = '<tr><td colspan="10" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
+  }
+}
+
+/* SCHEDULE */
+const scheduleData = [
+  { week: 1, course: 'Edinburgh', matchups: [
+    ['Hopkins & Mugford','Wesling & Nelson'],
+    ['Leadley & Mullins','Oakman & Simpson'],
+    ['Archer & Heinsch','Anderson & Bornhorst'],
+    ['Gallagher & Fischer','Bower & Petrovskis']
+  ]},
+  { week: 2, course: 'Keller', matchups: [
+    ['Hopkins & Mugford','Gallagher & Fischer'],
+    ['Leadley & Mullins','Bower & Petrovskis'],
+    ['Archer & Heinsch','Wesling & Nelson'],
+    ['Anderson & Bornhorst','Oakman & Simpson']
+  ]},
+  { week: 3, course: 'Chaska Town Course', matchups: [
+    ['Hopkins & Mugford','Anderson & Bornhorst'],
+    ['Leadley & Mullins','Gallagher & Fischer'],
+    ['Archer & Heinsch','Bower & Petrovskis'],
+    ['Wesling & Nelson','Oakman & Simpson']
+  ]},
+  { week: 4, course: 'Meadowbrook', scramble: true, matchups: [
+    ['Scramble','All 8 Teams'],
+    ['2-Man Scramble','Week 4 Event']
+  ]},
+  { week: 5, course: 'Baker National', matchups: [
+    ['Hopkins & Mugford','Bower & Petrovskis'],
+    ['Leadley & Mullins','Archer & Heinsch'],
+    ['Wesling & Nelson','Anderson & Bornhorst'],
+    ['Gallagher & Fischer','Oakman & Simpson']
+  ]},
+  { week: 6, course: 'Braemar', matchups: [
+    ['Hopkins & Mugford','Archer & Heinsch'],
+    ['Leadley & Mullins','Wesling & Nelson'],
+    ['Anderson & Bornhorst','Gallagher & Fischer'],
+    ['Bower & Petrovskis','Oakman & Simpson']
+  ]},
+  { week: 7, course: 'Pioneer Creek', matchups: [
+    ['Hopkins & Mugford','Leadley & Mullins'],
+    ['Archer & Heinsch','Oakman & Simpson'],
+    ['Anderson & Bornhorst','Bower & Petrovskis'],
+    ['Gallagher & Fischer','Wesling & Nelson']
+  ]},
+  { week: 8, course: 'Keller', matchups: [
+    ['Hopkins & Mugford','Oakman & Simpson'],
+    ['Leadley & Mullins','Anderson & Bornhorst'],
+    ['Archer & Heinsch','Gallagher & Fischer'],
+    ['Wesling & Nelson','Bower & Petrovskis']
+  ]}
+];
+
+function buildSchedule() {
+  const grid = document.getElementById('schedule-grid');
+  grid.innerHTML = scheduleData.map(w => `
+    <div class="week-card ${w.scramble ? 'week-scramble' : ''}">
+      <div class="week-header">
+        <span class="week-num">Week ${w.week}</span>
+        <span class="week-course">${w.course}</span>
+      </div>
+      <div class="matchup-list">
+        ${w.matchups.map(m => `
+          <div class="matchup-row">
+            <span class="matchup-t1">${m[0]}</span>
+            <span class="matchup-vs">vs</span>
+            <span class="matchup-t2">${m[1]}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* DIRECTORY */
+async function loadDirectory() {
+  try {
+    const table = await fetchSheet('league_directory');
+    const rows = tableRows(table).filter(r => r[1] && r[1] !== 'Name');
+    const teams = teamNames();
+    const tbody = document.getElementById('dir-body');
+    tbody.innerHTML = rows.map(r => {
+      const tNum = parseInt(r[0]);
+      return `<tr>
+        <td class="team-name" style="white-space:nowrap">${teams[tNum] || `Team ${tNum}`}</td>
+        <td>${r[1]}</td>
+        <td><span class="hdcp-pill">${r[4]}</span></td>
+        <td style="color:var(--mid-gray); font-size:12px">${r[6]}</td>
+        <td style="text-align:center">${r[5] === 'X' ? '✓' : '○'}</td>
+        <td style="text-align:center">${r[7] === 'X' ? '✓' : '○'}</td>
+      </tr>`;
+    }).join('');
+
+    const grid = document.getElementById('player-grid');
+    grid.innerHTML = rows.map(r => `
+      <div class="player-card">
+        <div class="player-avatar">${initials(r[1])}</div>
+        <div class="player-name">${r[1]}</div>
+        <div class="player-team">${teams[parseInt(r[0])] || ''}</div>
+        <div class="player-hdcp-row">
+          <span class="player-hdcp-label">Handicap Index</span>
+          <span class="hdcp-pill">${r[4]}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('dir-body').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load directory.</td></tr>';
+  }
+}
+
+/* SKINS */
+async function loadSkins() {
+  try {
+    const table = await fetchSheet('skins');
+    const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
+    const tbody = document.getElementById('skins-body');
+    if (rows.every(r => parseFloat(r[2] || 0) === 0 && parseFloat(r[1] || 0) === 0)) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No skins claimed yet — check back after Week 1!</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r, i) => `<tr>
+      <td class="${rankClass(i)}">${i+1}</td>
+      <td class="team-name">${r[0]}</td>
+      <td>${fmtPts(r[1])}</td>
+      <td>${fmtPts(r[2])}</td>
+      <td><strong>${fmtPts(r[3])}</strong></td>
+      <td>$${fmtPts(r[4])}</td>
+    </tr>`).join('');
+  } catch(e) {
+    document.getElementById('skins-body').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load skins data.</td></tr>';
+  }
+}
+
+/* TOTW */
+async function loadTOTW() {
+  try {
+    const table = await fetchSheet('team_of_the_week');
+    const rows = tableRows(table).filter(r => r[1] && !isNaN(parseFloat(r[1])));
+    const tbody = document.getElementById('totw-body');
+    tbody.innerHTML = rows.map(r => {
+      const totw = r[4];
+      const hasData = totw && totw !== '#REF!' && totw !== '#DIV/0!';
+      return `<tr>
+        <td>Season ${r[0]}</td>
+        <td>Week ${r[1]}</td>
+        <td>${r[2]}</td>
+        <td>${hasData ? `<strong>${totw}</strong>` : '<em style="color:var(--mid-gray)">Pending</em>'}</td>
+        <td>${r[5] && r[5] !== '#REF!' ? r[5] : '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('totw-body').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load TOTW data.</td></tr>';
+  }
+}
+
+/* INIT */
+buildSchedule();
+loadStandings();
+loadIndividual();
+loadDirectory();
+loadSkins();
+loadTOTW();
+</script>
+</body>
+</html>
