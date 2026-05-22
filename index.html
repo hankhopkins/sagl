@@ -1303,9 +1303,11 @@ async function loadScorecard() {
     // Matchup header row: col A = "Round Date:", col C = "Player1 v Player2"
     // Player rows follow immediately after
     let i = 4;
+    let matchupCount = 0;
     while (i < rows.length) {
       const r = rows[i];
       if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date')) {
+        matchupCount++;
         const p1row = i + 1 < rows.length ? rows[i + 1] : null;
         const p2row = i + 2 < rows.length ? rows[i + 2] : null;
         const p1name = p1row ? (p1row[4] || '') : '';
@@ -1321,7 +1323,8 @@ async function loadScorecard() {
           roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
         }
         const isPlayed = roundDateStr !== '';
-        html += `<tr><td colspan="14" class="sc-matchup-header">${matchupLabel || 'Matchup'}${isPlayed ? ' <span style="font-size:10px;opacity:0.8;font-weight:400">' + roundDateStr + '</span>' : ''}</td></tr>`;
+        const isGold = matchupCount % 2 === 0;
+        html += `<tr><td colspan="14" class="sc-matchup-header" style="${isGold ? 'background:#d4a843;color:var(--green-dark)' : ''}">${matchupLabel || 'Matchup'}${isPlayed ? ' <span style="font-size:10px;opacity:0.8;font-weight:400">' + roundDateStr + '</span>' : ''}</td></tr>`;
         // Get both players' course handicaps to compute differential
         const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
         const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
@@ -1367,9 +1370,9 @@ async function loadScorecard() {
             </tr>`;
           }
         }
-        // Skip past the 2 player rows; handle optional blank row
+        // Skip past the 2 player rows, then skip any blank rows
         i += 3;
-        if (i < rows.length && rows[i] && !rows[i][0]) i++;
+        while (i < rows.length && (!rows[i] || !rows[i][0] || rows[i][0] === '')) i++;
       } else {
         i++;
       }
