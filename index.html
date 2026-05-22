@@ -492,7 +492,7 @@
     <div class="table-wrap">
       <table id="dir-table">
         <thead><tr>
-          <th>Team</th><th>Player</th><th>Handicap</th><th>GHIN ID</th><th>Hdcp Paid</th><th>League Paid</th>
+          <th>Player</th><th>Team</th><th>Handicap</th><th>GHIN ID</th><th>Phone</th><th>Email</th>
         </tr></thead>
         <tbody id="dir-body">
           <tr><td colspan="6" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -892,12 +892,12 @@ async function loadDirectory() {
     tbody.innerHTML = rows.map(r => {
       const tNum = parseInt(r[0]);
       return `<tr>
-        <td class="team-name" style="white-space:nowrap">${teams[tNum] || `Team ${tNum}`}</td>
-        <td>${r[1]}</td>
+        <td class="team-name">${r[1]}</td>
+        <td style="color:var(--mid-gray); font-size:12px">${teams[tNum] || `Team ${tNum}`}</td>
         <td><span class="hdcp-pill">${r[4]}</span></td>
         <td style="color:var(--mid-gray); font-size:12px">${r[6]}</td>
-        <td style="text-align:center">${r[5] === 'X' ? '✓' : '○'}</td>
-        <td style="text-align:center">${r[7] === 'X' ? '✓' : '○'}</td>
+        <td style="font-size:12px">${r[2] || '—'}</td>
+        <td style="font-size:12px; color:var(--green-mid)">${r[3] || '—'}</td>
       </tr>`;
     }).join('');
 
