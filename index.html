@@ -492,7 +492,7 @@
     <div class="table-wrap">
       <table id="dir-table">
         <thead><tr>
-          <th>Player</th><th>Team</th><th>Handicap</th><th>GHIN ID</th><th>Phone</th><th>Email</th>
+          <th>Team #</th><th>Player</th><th>Handicap</th><th>GHIN ID</th><th>Phone</th><th>Email</th>
         </tr></thead>
         <tbody id="dir-body">
           <tr><td colspan="6" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -892,12 +892,12 @@ async function loadDirectory() {
     tbody.innerHTML = rows.map(r => {
       const tNum = parseInt(r[0]);
       return `<tr>
+        <td style="color:var(--mid-gray); font-size:12px; text-align:center">${tNum}</td>
         <td class="team-name">${r[1]}</td>
-        <td style="color:var(--mid-gray); font-size:12px">${teams[tNum] || `Team ${tNum}`}</td>
         <td><span class="hdcp-pill">${r[4]}</span></td>
         <td style="color:var(--mid-gray); font-size:12px">${r[6]}</td>
-        <td style="font-size:12px">${r[2] || '—'}</td>
-        <td style="font-size:12px; color:var(--green-mid)">${r[3] || '—'}</td>
+        <td style="font-size:12px">${r[2] || ''}</td>
+        <td style="font-size:12px; color:var(--green-mid)">${r[3] || ''}</td>
       </tr>`;
     }).join('');
 
@@ -954,7 +954,7 @@ async function loadTOTW() {
         <td>Season ${r[0]}</td>
         <td>Week ${r[1]}</td>
         <td>${r[2]}</td>
-        <td>${hasData ? `<strong>${totw}</strong>` : '<em style="color:var(--mid-gray)">Pending</em>'}</td>
+        <td>${hasData ? "<strong>" + totw + "</strong>" : '<em style="color:var(--mid-gray)">Pending</em>'}</td>
         <td>${r[5] && r[5] !== '#REF!' ? r[5] : '—'}</td>
       </tr>`;
     }).join('');
