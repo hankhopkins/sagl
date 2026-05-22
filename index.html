@@ -416,6 +416,92 @@
   }
   .site-footer strong { color: var(--gold); font-weight: 500; }
 
+
+  /* SCORECARDS */
+  .sc-course-header {
+    background: var(--green-dark);
+    color: var(--white);
+    border-radius: 10px 10px 0 0;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+  }
+  .sc-course-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #d4a843;
+  }
+  .sc-course-info {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+  }
+  .sc-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 0 0 10px 10px;
+    margin-bottom: 1.5rem;
+  }
+  .sc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 700px;
+  }
+  .sc-table th {
+    background: var(--green-dark);
+    color: #fff;
+    padding: 7px 10px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
+  .sc-table th:first-child { text-align: left; }
+  .sc-table td {
+    padding: 7px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--light-gray);
+    border-right: 1px solid var(--light-gray);
+  }
+  .sc-table td:first-child { text-align: left; font-weight: 500; color: var(--green-dark); }
+  .sc-table tr:last-child td { border-bottom: none; }
+  .sc-table tr.sc-par td { background: var(--green-pale); font-weight: 600; }
+  .sc-table tr.sc-hdcp td { background: #fdf8ee; }
+  .sc-table tr.sc-matchup td:first-child { color: var(--charcoal); font-weight: 400; }
+  .sc-table tr.sc-matchup:hover td { background: var(--green-pale); }
+  .sc-stroke { 
+    display: inline-block;
+    background: var(--green-dark);
+    color: #fff;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    line-height: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .sc-stroke-half {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--green-dark);
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    line-height: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .sc-matchup-header {
+    background: var(--green-mid);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 10px;
+    letter-spacing: .04em;
+  }
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -436,6 +522,7 @@
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
   <button class="nav-btn active" data-tab="standings">Standings</button>
+  <button class="nav-btn" data-tab="scorecards">Scorecards</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
   <button class="nav-btn" data-tab="players">Players</button>
   <button class="nav-btn" data-tab="sidegames">Side Games</button>
@@ -476,6 +563,34 @@
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- SCORECARDS TAB -->
+  <div class="tab-content" id="tab-scorecards">
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Matchup Week</label>
+        <select id="sc-week" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option value="1">Week 1 — Edinburgh</option>
+          <option value="2">Week 2 — Keller</option>
+          <option value="3">Week 3 — Chaska Town</option>
+          <option value="5">Week 5 — Baker National</option>
+          <option value="6">Week 6 — Braemar</option>
+          <option value="7">Week 7 — Pioneer Creek</option>
+          <option value="8">Week 8 — Keller</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Nine Holes</label>
+        <select id="sc-nine" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option value="front">Front 9</option>
+          <option value="back">Back 9</option>
+        </select>
+      </div>
+    </div>
+    <div id="sc-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
     </div>
   </div>
 
@@ -1062,6 +1177,136 @@ async function loadHdcpChart() {
   }
 }
 
+
+/* SCORECARDS */
+const SC_SHEETS = {
+  '1_front':  'edinburgh_sc',
+  '1_back':   'edinburgh_back_sc',
+  '2_front':  'keller_sc',
+  '2_back':   'keller_back_sc',
+  '3_front':  'chaska_town_sc',
+  '3_back':   'chaska_town_back_sc',
+  '5_front':  'baker_natl_sc',
+  '5_back':   'baker_natl_back_sc',
+  '6_front':  'braemar_sc',
+  '6_back':   'braemar_back_sc',
+  '7_front':  'pio_creek_sc',
+  '7_back':   'pio_creek_back_sc',
+  '8_front':  'keller_sc',
+  '8_back':   'keller_back_sc'
+};
+
+function fmtStroke(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = parseFloat(v);
+  if (isNaN(n) || n === 0) return '';
+  if (n === 0.5) return '<span class="sc-stroke-half">½</span>';
+  if (Number.isInteger(n)) return '<span class="sc-stroke">' + n + '</span>';
+  const whole = Math.floor(n);
+  return '<span class="sc-stroke">' + whole + '½</span>';
+}
+
+async function loadScorecard() {
+  const week = document.getElementById('sc-week').value;
+  const nine = document.getElementById('sc-nine').value;
+  const sheetKey = week + '_' + nine;
+  const sheetName = SC_SHEETS[sheetKey];
+  const container = document.getElementById('sc-content');
+
+  if (!sheetName) {
+    container.innerHTML = '<div class="loading-msg">No scorecard available for this selection.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>';
+
+  try {
+    const table = await fetchSheet(sheetName);
+    const rows = tableRows(table);
+    if (!rows || rows.length < 4) {
+      container.innerHTML = '<div class="loading-msg">No data yet for this scorecard.</div>';
+      return;
+    }
+
+    // Row 0 = blank/header, Row 1 = course name row, Row 2 = rating/slope
+    // Row 3 = tee/par row, Row 4 = handicap row
+    // Then matchup blocks follow
+
+    const courseName = rows[1][1] || '';
+    const teeInfo = rows[1][0] || '';
+    const rating = rows[1][2] || '';
+    const slope = rows[1][3] || '';
+    const parRow = rows[3];
+    const hdcpRow = rows[4];
+
+    // Hole numbers
+    const side = nine === 'back' ? 'Back' : 'Front';
+    const holeStart = nine === 'back' ? 10 : 1;
+    const holes = Array.from({length: 9}, (_, i) => holeStart + i);
+
+    // Build course header
+    let html = `<div class="sc-course-header">
+      <span class="sc-course-name">${courseName} — ${side} 9</span>
+      <span class="sc-course-info">Rating ${rating} · Slope ${slope}</span>
+    </div>
+    <div class="sc-wrap"><table class="sc-table">
+      <thead><tr>
+        <th>Matchup</th>
+        ${holes.map(h => '<th>' + h + '</th>').join('')}
+        <th>Strokes</th>
+      </tr></thead>
+      <tbody>`;
+
+    // Par row
+    const parCells = parRow.slice(5, 14);
+    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v || '') + '</td>').join('')}<td></td></tr>`;
+
+    // Handicap row
+    const hdcpCells = hdcpRow.slice(5, 14);
+    html += `<tr class="sc-hdcp"><td>Hole Handicap</td>${hdcpCells.map(v => '<td>' + (v || '') + '</td>').join('')}<td></td></tr>`;
+
+    // Matchup rows — find all player rows (rows with course handicap data)
+    // Each matchup block is 2 rows
+    let i = 5;
+    while (i < rows.length) {
+      const r = rows[i];
+      // Check if this looks like a matchup header row (has "Round Date" or player names)
+      if (r[3] && typeof r[3] === 'string' && r[3].includes(' v ')) {
+        const matchupLabel = r[3];
+        html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
+        // Next two rows are the two players
+        for (let p = 1; p <= 2; p++) {
+          if (i + p < rows.length) {
+            const pr = rows[i + p];
+            const playerName = pr[3] || '';
+            const courseHdcp = pr[1] !== '' ? pr[1] : '';
+            const strokes = pr[2] !== '' ? pr[2] : '';
+            const holeCells = pr.slice(5, 14);
+            html += `<tr class="sc-matchup">
+              <td>${playerName}</td>
+              ${holeCells.map(v => '<td>' + fmtStroke(v) + '</td>').join('')}
+              <td><strong>${strokes || courseHdcp || ''}</strong></td>
+            </tr>`;
+          }
+        }
+        i += 3;
+      } else {
+        i++;
+      }
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+  } catch(e) {
+    container.innerHTML = '<div class="loading-msg">Could not load scorecard — sheet may be updating.</div>';
+    console.error(e);
+  }
+}
+
+document.getElementById('sc-week').addEventListener('change', loadScorecard);
+document.getElementById('sc-nine').addEventListener('change', loadScorecard);
+
 /* INIT */
 buildSchedule();
 loadStandings();
@@ -1070,6 +1315,7 @@ loadDirectory();
 loadSkins();
 loadTOTW();
 loadHdcpChart();
+loadScorecard();
 </script>
 </body>
 </html>
