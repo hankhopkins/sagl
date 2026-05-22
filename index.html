@@ -256,21 +256,25 @@
     color: var(--white);
     padding: 10px 14px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 2px;
   }
   .week-num {
-    font-family: 'Playfair Display', serif;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
   .week-course {
-    font-size: 11px;
-    color: var(--gold-light);
-    font-weight: 400;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #d4a843;
   }
   .week-scramble .week-header { background: var(--gold); }
-  .week-scramble .week-num, .week-scramble .week-course { color: var(--green-dark); }
+  .week-scramble .week-num { color: rgba(26,58,42,0.6); opacity:1; }
+  .week-scramble .week-course { color: var(--green-dark); }
   .matchup-list { padding: 10px 0; }
   .matchup-row {
     padding: 6px 14px;
@@ -443,13 +447,13 @@
   <!-- STANDINGS TAB -->
   <div class="tab-content active" id="tab-standings">
     <div class="stat-row" id="stat-row">
-      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Teams</div></div>
-      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label">Weeks</div></div>
-      <div class="stat-card"><div class="stat-value">$250</div><div class="stat-label">Buy-in</div></div>
-      <div class="stat-card"><div class="stat-value">$4,000</div><div class="stat-label">Prize Pool</div></div>
+      <div class="stat-card"><div class="stat-value">8</div><div class="stat-label" style="color:#d4a843">Teams</div></div>
+      <div class="stat-card"><div class="stat-value">8+</div><div class="stat-label" style="color:#d4a843">Matches</div></div>
+      <div class="stat-card"><div class="stat-value">$4,000</div><div class="stat-label" style="color:#d4a843">Prize Pool</div></div>
+      <div class="stat-card"><div class="stat-value">1</div><div style="margin-top:4px"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M6 2h12v7a6 6 0 0 1-12 0V2z"/><path d="M12 15v4"/><path d="M8 19h8"/><path d="M9 15a6 6 0 0 0 6 0"/></svg></div></div>
     </div>
 
-    <div class="section-title"><span class="dot"></span>Season 1 Standings</div>
+    <div class="section-title"><span class="dot"></span>Spring Season Standings</div>
     <div class="table-wrap">
       <table id="s1-table">
         <thead><tr>
@@ -461,11 +465,11 @@
       </table>
     </div>
 
-    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Individual Stats — Season 1</div>
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Individual Stats — Spring Season</div>
     <div class="table-wrap">
       <table id="ind-table">
         <thead><tr>
-          <th>#</th><th>Player</th><th>Matches</th><th>W</th><th>L</th><th>Pts</th><th>Birdies</th><th>Pars</th><th>Bogeys</th><th>Doubles+</th>
+          <th>Player</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Net Avg</th><th>Birdie Avg</th><th>Par Avg</th><th>Bogey Avg</th><th>Double+ Avg</th>
         </tr></thead>
         <tbody id="ind-body">
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -476,9 +480,10 @@
 
   <!-- SCHEDULE TAB -->
   <div class="tab-content" id="tab-schedule">
-    <div class="schedule-grid" id="schedule-grid">
-      <div class="loading-msg" style="grid-column:1/-1"><div class="spinner"></div>Loading schedule…</div>
-    </div>
+    <div class="section-title"><span class="dot"></span>Spring Season</div>
+    <div class="schedule-grid" id="schedule-grid-spring"></div>
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Summer Season</div>
+    <div class="schedule-grid" id="schedule-grid-summer"></div>
   </div>
 
   <!-- PLAYERS TAB -->
@@ -563,12 +568,12 @@
           <tr><td></td><td>Runners-Up</td><td>$500</td></tr>
           <tr><td></td><td>Semi-Finalists (×2)</td><td>$100 each / $50 per player</td></tr>
           <tr class="payout-cat"><td colspan="3">Regular Season — $800</td></tr>
-          <tr><td></td><td>Season 1 Champion</td><td>$250</td></tr>
-          <tr><td></td><td>Season 1 Runner-Up</td><td>$100</td></tr>
-          <tr><td></td><td>Season 1 Third</td><td>$50</td></tr>
-          <tr><td></td><td>Season 2 Champion</td><td>$250</td></tr>
-          <tr><td></td><td>Season 2 Runner-Up</td><td>$100</td></tr>
-          <tr><td></td><td>Season 2 Third</td><td>$50</td></tr>
+          <tr><td></td><td>Spring Season Champion</td><td>$250</td></tr>
+          <tr><td></td><td>Spring Season Runner-Up</td><td>$100</td></tr>
+          <tr><td></td><td>Spring Season Third</td><td>$50</td></tr>
+          <tr><td></td><td>Summer Season Champion</td><td>$250</td></tr>
+          <tr><td></td><td>Summer Season Runner-Up</td><td>$100</td></tr>
+          <tr><td></td><td>Summer Season Third</td><td>$50</td></tr>
           <tr class="payout-cat"><td colspan="3">Side Games — $1,500</td></tr>
           <tr><td></td><td>Skins ($100/week × 8)</td><td>$800</td></tr>
           <tr><td></td><td>Eagle Pot</td><td>$200</td></tr>
@@ -583,7 +588,7 @@
     <div class="rules-grid">
       <div class="rule-card">
         <div class="rule-card-title"><span class="icon">6</span>Teams Qualify</div>
-        <div class="rule-card-body">Top 3 from Season 1 + Top 3 from Season 2 automatically qualify. Remaining spots filled by wild card (combined points).</div>
+        <div class="rule-card-body">Top 3 from Spring Season + Top 3 from Summer Season automatically qualify. Remaining spots filled by wild card (combined points).</div>
       </div>
       <div class="rule-card">
         <div class="rule-card-title"><span class="icon">↑</span>Seeds 1 &amp; 2 Bye</div>
@@ -723,23 +728,33 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 
 /* STANDINGS */
+function lastName(fullName) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(' ');
+  return parts[parts.length - 1];
+}
+
+function teamNameFromRow(r) {
+  const p1 = lastName(r[1]);
+  const p2 = lastName(r[2]);
+  if (p1 && p2) return `${p1} & ${p2}`;
+  return teamNames()[parseInt(r[0])] || `Team ${r[0]}`;
+}
+
 async function loadStandings() {
   try {
     const table = await fetchSheet('season1');
     const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
-    const teams = teamNames();
     rows.sort((a,b) => parseFloat(b[8] || 0) - parseFloat(a[8] || 0));
     const tbody = document.getElementById('s1-body');
     if (rows.every(r => parseFloat(r[8] || 0) === 0)) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Season 1 has not started yet — check back after Week 1!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map((r, i) => {
-      const tNum = parseInt(r[0]);
-      const teamName = teams[tNum] || `Team ${tNum}`;
       return `<tr>
         <td class="${rankClass(i)}">${i+1}</td>
-        <td class="team-name">${teamName}</td>
+        <td class="team-name">${teamNameFromRow(r)}</td>
         <td>${fmtPts(r[3])}</td>
         <td>${fmtPts(r[4])}</td>
         <td>${fmtPts(r[5])}</td>
@@ -761,28 +776,29 @@ async function loadIndividual() {
     rows.sort((a,b) => parseFloat(b[5] || 0) - parseFloat(a[5] || 0));
     const tbody = document.getElementById('ind-body');
     if (rows.every(r => parseFloat(r[5] || 0) === 0)) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — waiting for Week 1.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
       return;
     }
-    tbody.innerHTML = rows.map((r, i) => `<tr>
-      <td class="${rankClass(i)}">${i+1}</td>
-      <td class="team-name">${r[0]}</td>
-      <td>${fmtPts(r[1])}</td>
+    tbody.innerHTML = rows.map((r) => `<tr>
+      <td class="team-name">${lastName(r[0])}</td>
       <td>${fmtPts(r[2])}</td>
       <td>${fmtPts(r[3])}</td>
+      <td>${fmtPts(r[4])}</td>
       <td><strong>${fmtPts(r[5])}</strong></td>
-      <td>${fmtPts(r[11])}</td>
-      <td>${fmtPts(r[12])}</td>
-      <td>${fmtPts(r[13])}</td>
-      <td>${fmtPts(parseFloat(r[14]||0)+parseFloat(r[15]||0))}</td>
+      <td>${fmtPts(r[6])}</td>
+      <td>${fmtPts(r[8])}</td>
+      <td>${fmtPts(r[16])}</td>
+      <td>${fmtPts(r[17])}</td>
+      <td>${fmtPts(r[18])}</td>
+      <td>${fmtPts(r[19])}</td>
     </tr>`).join('');
   } catch(e) {
-    document.getElementById('ind-body').innerHTML = '<tr><td colspan="10" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
+    document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
   }
 }
 
 /* SCHEDULE */
-const scheduleData = [
+const springSchedule = [
   { week: 1, course: 'Edinburgh', matchups: [
     ['Hopkins & Mugford','Wesling & Nelson'],
     ['Leadley & Mullins','Oakman & Simpson'],
@@ -801,10 +817,10 @@ const scheduleData = [
     ['Archer & Heinsch','Bower & Petrovskis'],
     ['Wesling & Nelson','Oakman & Simpson']
   ]},
-  { week: 4, course: 'Meadowbrook', scramble: true, matchups: [
-    ['Scramble','All 8 Teams'],
-    ['2-Man Scramble','Week 4 Event']
-  ]},
+  { week: 4, course: 'Meadowbrook', scramble: true, matchups: [] }
+];
+
+const summerSchedule = [
   { week: 5, course: 'Baker National', matchups: [
     ['Hopkins & Mugford','Bower & Petrovskis'],
     ['Leadley & Mullins','Archer & Heinsch'],
@@ -831,25 +847,40 @@ const scheduleData = [
   ]}
 ];
 
-function buildSchedule() {
-  const grid = document.getElementById('schedule-grid');
-  grid.innerHTML = scheduleData.map(w => `
-    <div class="week-card ${w.scramble ? 'week-scramble' : ''}">
+function renderWeekCard(w) {
+  if (w.scramble) {
+    return `<div class="week-card week-scramble">
       <div class="week-header">
-        <span class="week-num">Week ${w.week}</span>
+        <span class="week-num">Matchup ${w.week}</span>
         <span class="week-course">${w.course}</span>
       </div>
       <div class="matchup-list">
-        ${w.matchups.map(m => `
-          <div class="matchup-row">
-            <span class="matchup-t1">${m[0]}</span>
-            <span class="matchup-vs">vs</span>
-            <span class="matchup-t2">${m[1]}</span>
-          </div>
-        `).join('')}
+        <div class="matchup-row" style="justify-content:center">
+          <span class="matchup-t1" style="text-align:center;grid-column:1/-1;font-weight:500;color:var(--green-dark)">All 8 Teams &mdash; 2-Man Scramble</span>
+        </div>
       </div>
+    </div>`;
+  }
+  return `<div class="week-card">
+    <div class="week-header">
+      <span class="week-num">Matchup ${w.week}</span>
+      <span class="week-course">${w.course}</span>
     </div>
-  `).join('');
+    <div class="matchup-list">
+      ${w.matchups.map(m => `
+        <div class="matchup-row">
+          <span class="matchup-t1">${m[0]}</span>
+          <span class="matchup-vs">vs</span>
+          <span class="matchup-t2">${m[1]}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function buildSchedule() {
+  document.getElementById('schedule-grid-spring').innerHTML = springSchedule.map(renderWeekCard).join('');
+  document.getElementById('schedule-grid-summer').innerHTML = summerSchedule.map(renderWeekCard).join('');
 }
 
 /* DIRECTORY */
@@ -900,7 +931,7 @@ async function loadSkins() {
     }
     tbody.innerHTML = rows.map((r, i) => `<tr>
       <td class="${rankClass(i)}">${i+1}</td>
-      <td class="team-name">${r[0]}</td>
+      <td class="team-name">${lastName(r[0])}</td>
       <td>${fmtPts(r[1])}</td>
       <td>${fmtPts(r[2])}</td>
       <td><strong>${fmtPts(r[3])}</strong></td>
