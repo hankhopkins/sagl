@@ -1348,12 +1348,21 @@ async function loadScorecard() {
               <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
               <td style="text-align:center">${currentHdcp}</td>
               <td style="text-align:center">${courseHdcp.toFixed(1)}</td>
-              ${hdcpCells.map((holeHdcp) => {
-                if (!holeHdcp || strokesGiven === 0) return '<td></td>';
-                if (holeHdcp <= fullStrokes) return '<td>' + fmtStroke(1) + '</td>';
-                if (hasHalf && holeHdcp === fullStrokes + 1) return '<td>' + fmtStroke(0.5) + '</td>';
-                return '<td></td>';
-              }).join('')}
+              ${(() => {
+                if (strokesGiven === 0) return hdcpCells.map(() => '<td></td>').join('');
+                // Sort hole handicaps to find which holes get strokes
+                // Each stroke goes to the hole with the next lowest handicap number
+                const sortedHdcps = [...hdcpCells].filter(h => h).map(Number).sort((a,b) => a-b);
+                const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
+                const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
+                return hdcpCells.map((holeHdcp) => {
+                  if (!holeHdcp) return '<td></td>';
+                  const h = Number(holeHdcp);
+                  if (strokeHoles.has(h)) return '<td>' + fmtStroke(1) + '</td>';
+                  if (halfHole && h === halfHole) return '<td>' + fmtStroke(0.5) + '</td>';
+                  return '<td></td>';
+                }).join('');
+              })()}
               <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
             </tr>`;
           }
