@@ -522,7 +522,7 @@
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
   <button class="nav-btn active" data-tab="standings">Standings</button>
-  <button class="nav-btn" data-tab="scorecards">Scorecards</button>
+  <button class="nav-btn" data-tab="scorecards">Matches</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
   <button class="nav-btn" data-tab="players">Players</button>
   <button class="nav-btn" data-tab="sidegames">Side Games</button>
@@ -1249,56 +1249,66 @@ async function loadScorecard() {
     const teeInfo = rows[1][0] || '';
     const rating = rows[1][2] || '';
     const slope = rows[1][3] || '';
+    // Row 3 (index 3) = Par row: col E(4)="Par", cols F-N(5-13) = par per hole, col O(14) = total par
+    // Row 4 (index 4) = Hdcp row: col E(4)="Handicap", cols F-N(5-13) = hole handicaps
+    // Row 1 (index 1): col B(1)=course name, col C(2)=Rating label, col D(3)=Slope label
+    // Row 2 (index 2): col A(0)=tee color, col C(2)=rating value, col D(3)=slope value
     const parRow = rows[3];
     const hdcpRow = rows[4];
+    const actualCourseName = rows[1] ? (rows[1][1] || '') : courseName;
+    const actualRating = rows[2] ? (rows[2][2] || '') : rating;
+    const actualSlope = rows[2] ? (rows[2][3] || '') : slope;
+    const teeColor = rows[2] ? (rows[2][0] || '') : '';
 
-    // Hole numbers
     const side = nine === 'back' ? 'Back' : 'Front';
     const holeStart = nine === 'back' ? 10 : 1;
     const holes = Array.from({length: 9}, (_, i) => holeStart + i);
 
-    // Build course header
     let html = `<div class="sc-course-header">
-      <span class="sc-course-name">${courseName} — ${side} 9</span>
-      <span class="sc-course-info">Rating ${rating} · Slope ${slope}</span>
+      <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
+      <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} · Slope ${actualSlope}</span>
     </div>
     <div class="sc-wrap"><table class="sc-table">
       <thead><tr>
-        <th>Matchup</th>
+        <th>Player</th>
         ${holes.map(h => '<th>' + h + '</th>').join('')}
-        <th>Strokes</th>
+        <th>Total</th>
       </tr></thead>
       <tbody>`;
 
-    // Par row
     const parCells = parRow.slice(5, 14);
-    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v || '') + '</td>').join('')}<td></td></tr>`;
+    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parRow[14] || ''}</td></tr>`;
 
-    // Handicap row
     const hdcpCells = hdcpRow.slice(5, 14);
-    html += `<tr class="sc-hdcp"><td>Hole Handicap</td>${hdcpCells.map(v => '<td>' + (v || '') + '</td>').join('')}<td></td></tr>`;
+    html += `<tr class="sc-hdcp"><td>Hole Handicap</td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
 
-    // Matchup rows — find all player rows (rows with course handicap data)
-    // Each matchup block is 2 rows
+    // Parse matchup blocks
+    // Col A(0)=label, B(1)=Current Hdcp, C(2)=Course Hdcp, D(3)=Tees, E(4)=Player Name, F-N(5-13)=holes 1-9, O(14)=Total strokes
+    // Matchup header row: col A = "Round Date:", col C = "Player1 v Player2"
+    // Player rows follow immediately after
     let i = 5;
     while (i < rows.length) {
       const r = rows[i];
-      // Check if this looks like a matchup header row (has "Round Date" or player names)
-      if (r[3] && typeof r[3] === 'string' && r[3].includes(' v ')) {
-        const matchupLabel = r[3];
+      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date') && r[2] && typeof r[2] === 'string' && r[2].includes(' v ')) {
+        const matchupLabel = r[2];
         html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
-        // Next two rows are the two players
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
             const pr = rows[i + p];
-            const playerName = pr[3] || '';
-            const courseHdcp = pr[1] !== '' ? pr[1] : '';
-            const strokes = pr[2] !== '' ? pr[2] : '';
+            const playerName = pr[4] || '';
+            const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
+            const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]).toFixed(1) : '';
             const holeCells = pr.slice(5, 14);
+            const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '0';
             html += `<tr class="sc-matchup">
-              <td>${playerName}</td>
-              ${holeCells.map(v => '<td>' + fmtStroke(v) + '</td>').join('')}
-              <td><strong>${strokes || courseHdcp || ''}</strong></td>
+              <td>${playerName} <span style="color:var(--mid-gray);font-size:11px;font-weight:400">${courseHdcp !== '' ? 'Hdcp ' + courseHdcp : ''}</span></td>
+              ${holeCells.map(v => {
+                if (v === '*' || v === 1) return '<td>' + fmtStroke(1) + '</td>';
+                if (v === '!' || v === 0.5) return '<td>' + fmtStroke(0.5) + '</td>';
+                if (v === null || v === '' || v === 0) return '<td></td>';
+                return '<td>' + fmtStroke(v) + '</td>';
+              }).join('')}
+              <td><strong>${totalStrokes}</strong></td>
             </tr>`;
           }
         }
