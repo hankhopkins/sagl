@@ -495,8 +495,6 @@
     font-weight: 600;
   }
   .sc-matchup-header {
-    background: var(--green-mid);
-    color: #fff !important;
     font-size: 12px;
     font-weight: 600;
     padding: 7px 10px;
@@ -1324,7 +1322,9 @@ async function loadScorecard() {
         }
         const isPlayed = roundDateStr !== '';
         const isGold = matchupCount % 2 === 0;
-        html += `<tr><td colspan="14" class="sc-matchup-header" style="${isGold ? 'background:#d4a843;color:var(--green-dark)' : ''}">${matchupLabel || 'Matchup'}${isPlayed ? ' <span style="font-size:10px;opacity:0.8;font-weight:400">' + roundDateStr + '</span>' : ''}</td></tr>`;
+        const hdrBg = isGold ? '#d4a843' : '#1a3a2a';
+        const hdrColor = isGold ? '#1a3a2a' : '#d4a843';
+        html += `<tr><td colspan="14" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${matchupLabel || 'Matchup'}</td></tr>`;
         // Get both players' course handicaps to compute differential
         const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
         const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
