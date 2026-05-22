@@ -1339,8 +1339,10 @@ async function loadScorecard() {
               <td style="text-align:center">${currentHdcp}</td>
               <td style="text-align:center">${courseHdcp}</td>
               ${holeCells.map(v => {
-                if (v === '*') return '<td>' + fmtStroke(1) + '</td>';
-                if (v === '!') return '<td>' + fmtStroke(0.5) + '</td>';
+                if (v === '*' || v === 1) return '<td>' + fmtStroke(1) + '</td>';
+                if (v === '!' || v === 0.5) return '<td>' + fmtStroke(0.5) + '</td>';
+                if (typeof v === 'string' && v.trim() === '*') return '<td>' + fmtStroke(1) + '</td>';
+                if (typeof v === 'string' && v.trim() === '!') return '<td>' + fmtStroke(0.5) + '</td>';
                 if (v === null || v === '' || v === 0) return '<td></td>';
                 return '<td>' + fmtStroke(v) + '</td>';
               }).join('')}
