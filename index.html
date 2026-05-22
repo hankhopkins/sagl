@@ -1249,15 +1249,17 @@ async function loadScorecard() {
     const teeInfo = rows[1][0] || '';
     const rating = rows[1][2] || '';
     const slope = rows[1][3] || '';
-    // Row 3 (index 3) = Par row: col E(4)="Par", cols F-N(5-13) = par per hole, col O(14) = total par
-    // Row 4 (index 4) = Hdcp row: col E(4)="Handicap", cols F-N(5-13) = hole handicaps
-    // Row 1 (index 1): col B(1)=course name, col C(2)=Rating label, col D(3)=Slope label
-    // Row 2 (index 2): col A(0)=tee color, col C(2)=rating value, col D(3)=slope value
+    // Row structure (0-indexed):
+    // 0: blank/Course/Tees header
+    // 1: Edinburgh, Rating, Slope, Par, [yardages]
+    // 2: Blue, 35.3, 128, blank, 36, [yardages]
+    // 3: blank, blank, Front, Par, [par values per hole], total par
+    // 4: Current Hdcp, Course Hdcp, Tees, Handicap, [hole handicaps]
     const parRow = rows[3];
     const hdcpRow = rows[4];
-    const actualCourseName = rows[1] ? (rows[1][1] || '') : courseName;
-    const actualRating = rows[2] ? (rows[2][2] || '') : rating;
-    const actualSlope = rows[2] ? (rows[2][3] || '') : slope;
+    const actualCourseName = rows[1] ? (rows[1][1] || '') : '';
+    const actualRating = rows[2] ? (rows[2][2] || '') : '';
+    const actualSlope = rows[2] ? (rows[2][3] || '') : '';
     const teeColor = rows[2] ? (rows[2][0] || '') : '';
 
     const side = nine === 'back' ? 'Back' : 'Front';
@@ -1266,18 +1268,19 @@ async function loadScorecard() {
 
     let html = `<div class="sc-course-header">
       <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
-      <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} · Slope ${actualSlope}</span>
+      <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} &nbsp;·&nbsp; Slope ${actualSlope}</span>
     </div>
     <div class="sc-wrap"><table class="sc-table">
       <thead><tr>
         <th>Player</th>
         ${holes.map(h => '<th>' + h + '</th>').join('')}
-        <th>Total</th>
+        <th>Strokes</th>
       </tr></thead>
       <tbody>`;
 
     const parCells = parRow.slice(5, 14);
-    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parRow[14] || ''}</td></tr>`;
+    const parTotal = parRow[14] || '';
+    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
 
     const hdcpCells = hdcpRow.slice(5, 14);
     html += `<tr class="sc-hdcp"><td>Hole Handicap</td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
@@ -1289,8 +1292,9 @@ async function loadScorecard() {
     let i = 5;
     while (i < rows.length) {
       const r = rows[i];
-      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date') && r[2] && typeof r[2] === 'string' && r[2].includes(' v ')) {
-        const matchupLabel = r[2];
+      const matchupCol = [2,3,4].find(c => r[c] && typeof r[c] === 'string' && r[c].includes(' v '));
+      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date') && matchupCol !== undefined) {
+        const matchupLabel = r[matchupCol];
         html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
