@@ -973,31 +973,36 @@ const PLAYER_TEAMS = {
 
 async function loadHdcpChart() {
   try {
-    const table = await fetchSheet('handi_track_data');
-    const rows = tableRows(table);
-    if (!rows || rows.length < 2) return;
+    const url = BASE + encodeURIComponent('handi_track_data');
+    const res = await fetch(url);
+    const text = await res.text();
+    const json = JSON.parse(text.substring(47).slice(0, -2));
+    const table = json.table;
+    if (!table || !table.rows) return;
 
-    const headerRow = rows[0];
-    const dataRows = rows.slice(1).filter(r => r[0]);
+    const headerRow = table.cols.map(c => c.label).filter(l => l);
+    const dataRows = table.rows.filter(r => r.c && r.c[0] && r.c[0].v);
 
     const dates = dataRows.map(r => {
-      const d = r[0];
-      if (d instanceof Date) return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
-      if (typeof d === 'string') return d;
-      if (typeof d === 'number') {
-        const date = new Date((d - 25569) * 86400 * 1000);
-        return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      const raw = r.c[0].v;
+      if (typeof raw === 'string' && raw.startsWith('Date(')) {
+        const parts = raw.replace('Date(','').replace(')','').split(',');
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
+        return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       }
-      return String(d);
+      if (typeof raw === 'string') return raw;
+      return String(raw);
     });
 
-    const players = headerRow.slice(1).filter(p => p);
-    const datasets = players.map((player, idx) => {
+    const playerCols = headerRow.slice(1);
+
+    const datasets = playerCols.map((player, idx) => {
       const ln = lastName(player);
       const teamNum = PLAYER_TEAMS[ln] || 1;
       const color = TEAM_COLORS[teamNum];
       const data = dataRows.map(r => {
-        const v = parseFloat(r[idx + 1]);
+        const cell = r.c[idx + 1];
+        const v = cell ? parseFloat(cell.v) : null;
         return isNaN(v) ? null : v;
       });
       return {
