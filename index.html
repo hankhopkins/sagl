@@ -1311,7 +1311,17 @@ async function loadScorecard() {
         const p1name = p1row ? (p1row[4] || '') : '';
         const p2name = p2row ? (p2row[4] || '') : '';
         const matchupLabel = p1name && p2name ? p1name + ' v ' + p2name : '';
-        html += `<tr><td colspan="14" class="sc-matchup-header">${matchupLabel || 'Matchup'}</td></tr>`;
+        // Date is in col B (index 1) of the Round Date row
+        const roundDateRaw = r[1] || '';
+        let roundDateStr = '';
+        if (roundDateRaw && typeof roundDateRaw === 'string' && roundDateRaw.trim() !== '') {
+          roundDateStr = roundDateRaw;
+        } else if (roundDateRaw && typeof roundDateRaw === 'number') {
+          const d = new Date((roundDateRaw - 25569) * 86400 * 1000);
+          roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+        }
+        const played = roundDateStr !== '';
+        html += `<tr><td colspan="14" class="sc-matchup-header">${matchupLabel || 'Matchup'}${played ? ' <span style="font-size:10px;opacity:0.8;font-weight:400">' + roundDateStr + '</span>' : ''}</td></tr>`;
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
             const pr = rows[i + p];
@@ -1319,17 +1329,12 @@ async function loadScorecard() {
             if (!playerName) continue;
             const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
             const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]).toFixed(1) : '';
-            const rawDate = pr[0] || '';
-            let dateStr = '';
-            if (rawDate && typeof rawDate === 'string' && rawDate !== "Today's Date:" && rawDate !== 'Round Date:') {
-              dateStr = rawDate;
-            } else if (rawDate && typeof rawDate === 'object' && rawDate.toLocaleDateString) {
-              dateStr = rawDate.toLocaleDateString('en-US', {month:'numeric', day:'numeric'});
-            }
+            const dateStr = played ? roundDateStr : '';
             const holeCells = pr.slice(5, 14);
             const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
-            html += `<tr class="sc-matchup">
-              <td>${playerName}</td>
+            const played = dateStr !== '';
+            html += `<tr class="sc-matchup" style="${played ? 'background:rgba(232,243,236,0.4)' : ''}">
+              <td>${playerName} ${played ? '<span style="font-size:10px;color:var(--green-mid);font-weight:500">✓</span>' : ''}</td>
               <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
               <td style="text-align:center">${currentHdcp}</td>
               <td style="text-align:center">${courseHdcp}</td>
@@ -1343,7 +1348,9 @@ async function loadScorecard() {
             </tr>`;
           }
         }
+        // Skip past the 2 player rows; handle optional blank row
         i += 3;
+        if (i < rows.length && rows[i] && !rows[i][0]) i++;
       } else {
         i++;
       }
