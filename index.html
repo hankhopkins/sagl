@@ -1249,18 +1249,28 @@ async function loadScorecard() {
     const teeInfo = rows[1][0] || '';
     const rating = rows[1][2] || '';
     const slope = rows[1][3] || '';
-    // Row structure (0-indexed):
-    // 0: blank/Course/Tees header
-    // 1: Edinburgh, Rating, Slope, Par, [yardages]
-    // 2: Blue, 35.3, 128, blank, 36, [yardages]
-    // 3: blank, blank, Front, Par, [par values per hole], total par
-    // 4: Current Hdcp, Course Hdcp, Tees, Handicap, [hole handicaps]
-    const parRow = rows[3];
-    const hdcpRow = rows[4];
-    const actualCourseName = rows[1] ? (rows[1][1] || '') : '';
-    const actualRating = rows[2] ? (rows[2][2] || '') : '';
-    const actualSlope = rows[2] ? (rows[2][3] || '') : '';
-    const teeColor = rows[2] ? (rows[2][0] || '') : '';
+    // Actual row structure from Google Sheets (0-indexed):
+    // 0: null,null,null,'Slope','Par', hole numbers
+    // 1: null,null,35.3,'128','36', yardages  <- rating col2, slope col3
+    // 2: null,null,null,'Front','Par', par values col5-13, total col14
+    // 3: null,null,null,'Tees','Handicap', hole handicaps col5-13
+    // 4: 'Round Date:', all null  <- matchup separator
+    // 5: "Today's Date:", hdcp, courseHdcp, tee, playerName, holes col5-13, total col14
+    // 6: date, hdcp, courseHdcp, tee, playerName, holes col5-13, total col14
+    const parRow = rows[2];
+    const hdcpRow = rows[3];
+    const courseNameMap = {
+      'edinburgh_sc': 'Edinburgh', 'edinburgh_back_sc': 'Edinburgh',
+      'keller_sc': 'Keller', 'keller_back_sc': 'Keller',
+      'chaska_town_sc': 'Chaska Town', 'chaska_town_back_sc': 'Chaska Town',
+      'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
+      'braemar_sc': 'Braemar', 'braemar_back_sc': 'Braemar',
+      'pio_creek_sc': 'Pioneer Creek', 'pio_creek_back_sc': 'Pioneer Creek'
+    };
+    const actualCourseName = courseNameMap[sheetName] || sheetName;
+    const actualRating = rows[1] ? (rows[1][2] || '') : '';
+    const actualSlope = rows[1] ? (rows[1][3] || '') : '';
+    const teeColor = rows[5] ? (rows[5][3] || '') : '';
 
     const side = nine === 'back' ? 'Back' : 'Front';
     const holeStart = nine === 'back' ? 10 : 1;
@@ -1292,27 +1302,33 @@ async function loadScorecard() {
     let i = 5;
     while (i < rows.length) {
       const r = rows[i];
-      const matchupCol = [2,3,4].find(c => r[c] && typeof r[c] === 'string' && r[c].includes(' v '));
-      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date') && matchupCol !== undefined) {
-        const matchupLabel = r[matchupCol];
-        html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
+      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date')) {
+        // Build matchup label from the two player names in next two rows
+        const p1row = i + 1 < rows.length ? rows[i + 1] : null;
+        const p2row = i + 2 < rows.length ? rows[i + 2] : null;
+        const p1name = p1row ? (p1row[4] || '') : '';
+        const p2name = p2row ? (p2row[4] || '') : '';
+        const matchupLabel = p1name && p2name ? p1name + ' v ' + p2name : '';
+        if (matchupLabel) {
+          html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
+        }
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
             const pr = rows[i + p];
             const playerName = pr[4] || '';
-            const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
+            if (!playerName) { i++; continue; }
             const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]).toFixed(1) : '';
             const holeCells = pr.slice(5, 14);
-            const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '0';
+            const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
             html += `<tr class="sc-matchup">
-              <td>${playerName} <span style="color:var(--mid-gray);font-size:11px;font-weight:400">${courseHdcp !== '' ? 'Hdcp ' + courseHdcp : ''}</span></td>
+              <td>${playerName} <span style="color:var(--mid-gray);font-size:11px;font-weight:400">${courseHdcp !== '' ? '(' + courseHdcp + ' strokes)' : ''}</span></td>
               ${holeCells.map(v => {
-                if (v === '*' || v === 1) return '<td>' + fmtStroke(1) + '</td>';
-                if (v === '!' || v === 0.5) return '<td>' + fmtStroke(0.5) + '</td>';
+                if (v === '*') return '<td>' + fmtStroke(1) + '</td>';
+                if (v === '!') return '<td>' + fmtStroke(0.5) + '</td>';
                 if (v === null || v === '' || v === 0) return '<td></td>';
                 return '<td>' + fmtStroke(v) + '</td>';
               }).join('')}
-              <td><strong>${totalStrokes}</strong></td>
+              <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
             </tr>`;
           }
         }
