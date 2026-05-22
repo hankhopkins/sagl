@@ -1322,29 +1322,37 @@ async function loadScorecard() {
         }
         const isPlayed = roundDateStr !== '';
         html += `<tr><td colspan="14" class="sc-matchup-header">${matchupLabel || 'Matchup'}${isPlayed ? ' <span style="font-size:10px;opacity:0.8;font-weight:400">' + roundDateStr + '</span>' : ''}</td></tr>`;
+        // Get both players' course handicaps to compute differential
+        const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
+        const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
+        const higherCH = Math.max(p1ch, p2ch);
+        const lowerCH = Math.min(p1ch, p2ch);
+        const diff = Math.round((higherCH - lowerCH) * 2) / 2;
+
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
             const pr = rows[i + p];
             const playerName = pr[4] || '';
             if (!playerName) continue;
             const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
-            const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]).toFixed(1) : '';
+            const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]) : 0;
             const dateStr = isPlayed ? roundDateStr : '';
-            const holeCells = pr.slice(5, 14);
             const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
             const rowPlayed = dateStr !== '';
+            // Only the higher handicap player receives strokes
+            const strokesGiven = courseHdcp === higherCH ? diff : 0;
+            const fullStrokes = Math.floor(strokesGiven);
+            const hasHalf = (strokesGiven % 1) === 0.5;
             html += `<tr class="sc-matchup" style="${rowPlayed ? 'background:rgba(232,243,236,0.4)' : ''}">
               <td>${playerName} ${rowPlayed ? '<span style="font-size:10px;color:var(--green-mid);font-weight:500">✓</span>' : ''}</td>
               <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
               <td style="text-align:center">${currentHdcp}</td>
-              <td style="text-align:center">${courseHdcp}</td>
-              ${holeCells.map(v => {
-                if (v === '*' || v === 1) return '<td>' + fmtStroke(1) + '</td>';
-                if (v === '!' || v === 0.5) return '<td>' + fmtStroke(0.5) + '</td>';
-                if (typeof v === 'string' && v.trim() === '*') return '<td>' + fmtStroke(1) + '</td>';
-                if (typeof v === 'string' && v.trim() === '!') return '<td>' + fmtStroke(0.5) + '</td>';
-                if (v === null || v === '' || v === 0) return '<td></td>';
-                return '<td>' + fmtStroke(v) + '</td>';
+              <td style="text-align:center">${courseHdcp.toFixed(1)}</td>
+              ${hdcpCells.map((holeHdcp) => {
+                if (!holeHdcp || strokesGiven === 0) return '<td></td>';
+                if (holeHdcp <= fullStrokes) return '<td>' + fmtStroke(1) + '</td>';
+                if (hasHalf && holeHdcp === fullStrokes + 1) return '<td>' + fmtStroke(0.5) + '</td>';
+                return '<td></td>';
               }).join('')}
               <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
             </tr>`;
