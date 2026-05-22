@@ -423,6 +423,7 @@
     .nav-btn { padding: 0.8rem 0.9rem; font-size: 12px; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -500,9 +501,10 @@
       </table>
     </div>
 
-    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Current Handicap Index</div>
-    <div class="player-grid" id="player-grid">
-      <div class="loading-msg"><div class="spinner"></div>Loading…</div>
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Handicap Tracker</div>
+    <div style="background:var(--white); border:1px solid var(--border); border-radius:10px; padding:1.25rem; margin-bottom:2rem;">
+      <canvas id="hdcp-chart" height="120"></canvas>
+      <div id="hdcp-legend" style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:1rem; font-size:11px;"></div>
     </div>
   </div>
 
@@ -901,18 +903,6 @@ async function loadDirectory() {
       </tr>`;
     }).join('');
 
-    const grid = document.getElementById('player-grid');
-    grid.innerHTML = rows.map(r => `
-      <div class="player-card">
-        <div class="player-avatar">${initials(r[1])}</div>
-        <div class="player-name">${r[1]}</div>
-        <div class="player-team">${teams[parseInt(r[0])] || ''}</div>
-        <div class="player-hdcp-row">
-          <span class="player-hdcp-label">Handicap Index</span>
-          <span class="hdcp-pill">${r[4]}</span>
-        </div>
-      </div>
-    `).join('');
   } catch(e) {
     document.getElementById('dir-body').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load directory.</td></tr>';
   }
@@ -963,6 +953,109 @@ async function loadTOTW() {
   }
 }
 
+/* HANDICAP CHART */
+const TEAM_COLORS = {
+  1: '#2d7a4f', 2: '#c9a84c', 3: '#3a7abf', 4: '#c0392b',
+  5: '#8e44ad', 6: '#16a085', 7: '#d35400', 8: '#2c3e50'
+};
+
+const PLAYER_TEAMS = {
+  'Hopkins': 1, 'Mugford': 1,
+  'Leadley': 2, 'Mullins': 2,
+  'Anderson': 3, 'Bornhorst': 3,
+  'Wesling': 4, 'Nelson': 4,
+  'Gallagher': 5, 'Fischer': 5,
+  'Archer': 6, 'Heinsch': 6,
+  'Bower': 7, 'Petrovskis': 7,
+  'Oakman': 8, 'Simpson': 8
+};
+
+async function loadHdcpChart() {
+  try {
+    const table = await fetchSheet('handi_track_data');
+    const rows = tableRows(table);
+    if (!rows || rows.length < 2) return;
+
+    const headerRow = rows[0];
+    const dataRows = rows.slice(1).filter(r => r[0]);
+
+    const dates = dataRows.map(r => {
+      const d = r[0];
+      if (d instanceof Date) return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      if (typeof d === 'string') return d;
+      if (typeof d === 'number') {
+        const date = new Date((d - 25569) * 86400 * 1000);
+        return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      }
+      return String(d);
+    });
+
+    const players = headerRow.slice(1).filter(p => p);
+    const datasets = players.map((player, idx) => {
+      const ln = lastName(player);
+      const teamNum = PLAYER_TEAMS[ln] || 1;
+      const color = TEAM_COLORS[teamNum];
+      const data = dataRows.map(r => {
+        const v = parseFloat(r[idx + 1]);
+        return isNaN(v) ? null : v;
+      });
+      return {
+        label: ln,
+        data,
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        tension: 0.3,
+        spanGaps: true
+      };
+    });
+
+    const ctx = document.getElementById('hdcp-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: { labels: dates, datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1)
+            }
+          }
+        },
+        scales: {
+          y: {
+            reverse: true,
+            title: { display: true, text: 'Handicap Index', font: { size: 11 } },
+            ticks: { font: { size: 11 } }
+          },
+          x: { ticks: { font: { size: 11 } } }
+        }
+      }
+    });
+
+    const legend = document.getElementById('hdcp-legend');
+    const teamLabels = {
+      1: 'Hopkins & Mugford', 2: 'Leadley & Mullins', 3: 'Anderson & Bornhorst',
+      4: 'Wesling & Nelson', 5: 'Gallagher & Fischer', 6: 'Archer & Heinsch',
+      7: 'Bower & Petrovskis', 8: 'Oakman & Simpson'
+    };
+    legend.innerHTML = Object.entries(teamLabels).map(([num, name]) =>
+      `<div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:20px;height:3px;background:${TEAM_COLORS[num]};border-radius:2px;"></div>
+        <span style="color:var(--mid-gray)">${name}</span>
+      </div>`
+    ).join('');
+
+  } catch(e) {
+    console.error('Hdcp chart error:', e);
+  }
+}
+
 /* INIT */
 buildSchedule();
 loadStandings();
@@ -970,6 +1063,7 @@ loadIndividual();
 loadDirectory();
 loadSkins();
 loadTOTW();
+loadHdcpChart();
 </script>
 </body>
 </html>
