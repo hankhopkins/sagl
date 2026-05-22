@@ -1283,6 +1283,9 @@ async function loadScorecard() {
     <div class="sc-wrap"><table class="sc-table">
       <thead><tr>
         <th>Player</th>
+        <th>Date</th>
+        <th>Hdcp</th>
+        <th>Course Hdcp</th>
         ${holes.map(h => '<th>' + h + '</th>').join('')}
         <th>Strokes</th>
       </tr></thead>
@@ -1290,38 +1293,46 @@ async function loadScorecard() {
 
     const parCells = parRow.slice(5, 14);
     const parTotal = parRow[14] || '';
-    html += `<tr class="sc-par"><td>Par</td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
+    html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
 
     const hdcpCells = hdcpRow.slice(5, 14);
-    html += `<tr class="sc-hdcp"><td>Hole Handicap</td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
+    html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td></td><td></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
 
     // Parse matchup blocks
     // Col A(0)=label, B(1)=Current Hdcp, C(2)=Course Hdcp, D(3)=Tees, E(4)=Player Name, F-N(5-13)=holes 1-9, O(14)=Total strokes
     // Matchup header row: col A = "Round Date:", col C = "Player1 v Player2"
     // Player rows follow immediately after
-    let i = 5;
+    let i = 4;
     while (i < rows.length) {
       const r = rows[i];
       if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date')) {
-        // Build matchup label from the two player names in next two rows
         const p1row = i + 1 < rows.length ? rows[i + 1] : null;
         const p2row = i + 2 < rows.length ? rows[i + 2] : null;
         const p1name = p1row ? (p1row[4] || '') : '';
         const p2name = p2row ? (p2row[4] || '') : '';
         const matchupLabel = p1name && p2name ? p1name + ' v ' + p2name : '';
-        if (matchupLabel) {
-          html += `<tr><td colspan="11" class="sc-matchup-header">${matchupLabel}</td></tr>`;
-        }
+        html += `<tr><td colspan="14" class="sc-matchup-header">${matchupLabel || 'Matchup'}</td></tr>`;
         for (let p = 1; p <= 2; p++) {
           if (i + p < rows.length) {
             const pr = rows[i + p];
             const playerName = pr[4] || '';
-            if (!playerName) { i++; continue; }
+            if (!playerName) continue;
+            const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
             const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]).toFixed(1) : '';
+            const rawDate = pr[0] || '';
+            let dateStr = '';
+            if (rawDate && typeof rawDate === 'string' && rawDate !== "Today's Date:" && rawDate !== 'Round Date:') {
+              dateStr = rawDate;
+            } else if (rawDate && typeof rawDate === 'object' && rawDate.toLocaleDateString) {
+              dateStr = rawDate.toLocaleDateString('en-US', {month:'numeric', day:'numeric'});
+            }
             const holeCells = pr.slice(5, 14);
             const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
             html += `<tr class="sc-matchup">
-              <td>${playerName} <span style="color:var(--mid-gray);font-size:11px;font-weight:400">${courseHdcp !== '' ? '(' + courseHdcp + ' strokes)' : ''}</span></td>
+              <td>${playerName}</td>
+              <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
+              <td style="text-align:center">${currentHdcp}</td>
+              <td style="text-align:center">${courseHdcp}</td>
               ${holeCells.map(v => {
                 if (v === '*') return '<td>' + fmtStroke(1) + '</td>';
                 if (v === '!') return '<td>' + fmtStroke(0.5) + '</td>';
