@@ -1339,24 +1339,36 @@ async function loadResults() {
 
     while (i < rows.length) {
       const r = rows[i];
-      if (r && (r[0] === 'Week' || r[0] === 'Team') && rows[i+1] && !isNaN(parseFloat(rows[i+1][0]))) {
-        const weekNum = parseFloat(rows[i+1][0]);
-        const course  = rows[i+1][1] || '';
+      // Week header is at col[2] = 'Week', next row has col[2]=weekNum, col[7]=course
+      if (r && r[2] === 'Week' && rows[i+1] && !isNaN(parseFloat(rows[i+1][2]))) {
+        const weekNum = parseFloat(rows[i+1][2]);
+        const course  = rows[i+1][7] || '';
         const isScramble = course === 'Meadowbrook';
+        // Skip column header row (i+2), data starts at i+3
         const matchups = [];
         let j = i + 3;
         while (j < rows.length) {
           const mr = rows[j];
-          if (!mr || mr[0] === null || mr[0] === 'Week' || mr[0] === 'Team') break;
-          const p1name  = mr[0] || '';
-          const p2name  = mr[1] || '';
-          const p1pts   = (mr[3] !== null && mr[3] !== '#N/A' && !isNaN(parseFloat(mr[3]))) ? parseFloat(mr[3]) : null;
-          const p1gross = (mr[4] !== null && mr[4] !== '#N/A' && !isNaN(parseFloat(mr[4])) && parseFloat(mr[4]) > 0) ? parseFloat(mr[4]) : null;
-          const p1net   = (mr[5] !== null && mr[5] !== '#N/A' && !isNaN(parseFloat(mr[5]))) ? parseFloat(mr[5]) : null;
-          const p2pts   = (mr[9] !== null && mr[9] !== '#N/A' && !isNaN(parseFloat(mr[9]))) ? parseFloat(mr[9]) : null;
-          const p2gross = (mr[10] !== null && mr[10] !== '#N/A' && !isNaN(parseFloat(mr[10])) && parseFloat(mr[10]) > 0) ? parseFloat(mr[10]) : null;
-          const p2net   = (mr[11] !== null && mr[11] !== '#N/A' && !isNaN(parseFloat(mr[11]))) ? parseFloat(mr[11]) : null;
-          if (p1name) matchups.push({ p1name, p2name, p1pts, p1gross, p1net, p2pts, p2gross, p2net });
+          // Stop at blank row or next week header
+          if (!mr || (mr[0] === null && mr[1] === null && mr[2] === null)) break;
+          if (mr[2] === 'Week') break;
+
+          const p1name  = mr[0] ? String(mr[0]).trim() : '';
+          const p2name  = mr[1] ? String(mr[1]).trim() : '';
+          if (!p1name) { j++; continue; }
+
+          const parse = (v) => (v !== null && v !== undefined && v !== '#N/A' && !isNaN(parseFloat(v)) && parseFloat(v) !== 0) ? parseFloat(v) : null;
+          const parsePts = (v) => (v !== null && v !== undefined && v !== '#N/A' && !isNaN(parseFloat(v))) ? parseFloat(v) : null;
+
+          matchups.push({
+            p1name, p2name,
+            p1pts:   parsePts(mr[3]),
+            p1gross: parse(mr[4]),
+            p1net:   parse(mr[5]),
+            p2pts:   parsePts(mr[9]),
+            p2gross: parse(mr[10]),
+            p2net:   parse(mr[11])
+          });
           j++;
         }
         weeks.push({ weekNum, course, isScramble, matchups });
@@ -1366,58 +1378,61 @@ async function loadResults() {
       }
     }
 
-    if (weeks.length === 0) {
+    const displayWeeks = weeks.filter(w => !w.isScramble && w.weekNum <= 3);
+
+    if (displayWeeks.length === 0) {
       container.innerHTML = '<div class="loading-msg" style="padding:3rem">No results yet — check back after Week 1!</div>';
       return;
     }
 
-    // Limit to first 3 weeks (Spring Season match play weeks)
-    const displayWeeks = weeks.filter(w => !w.isScramble && w.weekNum <= 3);
-
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
+
+    const renderRow = (name, pts, gross, net, oppPts) => {
+      const played = pts !== null;
+      let rowCls = 'pending';
+      if (played && oppPts !== null) {
+        rowCls = pts > oppPts ? 'winner' : pts < oppPts ? 'loser' : 'tied';
+      }
+      return `<div class="results-card-row ${rowCls}">
+        <span class="results-player">${name}</span>
+        <span class="results-gross">${fmtNum(gross)}</span>
+        <span class="results-net">${fmtNum(net)}</span>
+        <span class="results-pts ${played && oppPts !== null && pts > oppPts ? 'winner-pts' : ''}">${fmtNum(pts)}</span>
+      </div>`;
+    };
 
     let html = '';
     for (const w of displayWeeks) {
       const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
 
       html += `<div class="results-week-section">
-        <div class="section-title"><span class="dot"></span>Week ${w.weekNum} — ${w.course}${w.isScramble ? ' <span style="font-size:11px;font-weight:400;color:var(--gold);font-family:\'DM Sans\',sans-serif">Scramble</span>' : ''}${!anyPlayed ? ' <span style="font-size:11px;font-weight:400;color:var(--mid-gray);font-style:italic;font-family:\'DM Sans\',sans-serif">Not yet played</span>' : ''}</span></div>`;
-
-      if (!anyPlayed) { html += `</div>`; continue; }
-
-      const renderRow = (name, pts, gross, net, oppPts) => {
-        const played = pts !== null;
-        let rowCls = played ? (pts > oppPts ? 'winner' : pts < oppPts ? 'loser' : 'tied') : 'pending';
-        return `<div class="results-card-row ${rowCls}">
-          <span class="results-player">${name}</span>
-          <span class="results-gross">${fmtNum(gross)}</span>
-          <span class="results-net">${fmtNum(net)}</span>
-          <span class="results-pts ${played && pts > oppPts ? 'winner-pts' : ''}">${fmtNum(pts)}</span>
+        <div class="section-title"><span class="dot"></span>Week ${w.weekNum} — ${w.course}
+          ${!anyPlayed ? '<span style="font-size:11px;font-weight:400;color:var(--mid-gray);font-style:italic;font-family:\'DM Sans\',sans-serif;margin-left:8px;">Not yet played</span>' : ''}
         </div>`;
-      };
 
-      html += `<div class="results-grid">`;
-
-      for (let k = 0; k < w.matchups.length; k += 2) {
-        const ma = w.matchups[k];
-        const mb = w.matchups[k + 1];
-        if (!ma) continue;
-
-        // Only show if at least one player has data
-        const anyData = ma.p1pts !== null || ma.p2pts !== null ||
-                        (mb && (mb.p1pts !== null || mb.p2pts !== null));
-
-        html += `<div class="results-card">
-          <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
-          ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
-          ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
-          <div class="results-vs-divider">vs</div>
-          ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
-          ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
-        </div>`;
+      if (anyPlayed) {
+        html += `<div class="results-grid">`;
+        for (let k = 0; k < w.matchups.length; k += 2) {
+          const ma = w.matchups[k];
+          const mb = w.matchups[k + 1];
+          if (!ma) continue;
+          // Only render card if at least one matchup has data
+          const hasData = ma.p1pts !== null || ma.p2pts !== null ||
+                          (mb && (mb.p1pts !== null || mb.p2pts !== null));
+          if (!hasData) continue;
+          html += `<div class="results-card">
+            <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
+            ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
+            ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
+            <div class="results-vs-divider">vs</div>
+            ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
+            ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
+          </div>`;
+        }
+        html += `</div>`;
       }
 
-      html += `</div></div>`;
+      html += `</div>`;
     }
 
     container.innerHTML = html;
