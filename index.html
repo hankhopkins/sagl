@@ -546,7 +546,7 @@
     pointer-events: none;
   }
   .hc-tr { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 3px 4px 0 0; line-height: 1; text-align: right; align-self: start; }
-  .hc-bl { font-size: 20px; font-weight: 700; color: var(--gold); padding: 0 0 2px 2px; line-height: 1; align-self: end; }
+  .hc-bl { font-size: 22px; font-weight: 700; color: var(--gold); padding: 0 0 1px 2px; line-height: 1; align-self: end; display: flex; align-items: flex-end; justify-content: flex-start; }
   .hc-br { font-size: 10px; font-weight: 700; font-style: italic; color: #fff; background: var(--green-dark); border-radius: 100px; min-width: 16px; max-width: 26px; height: 16px; display: flex; align-items: center; justify-content: center; padding: 0 3px; margin: 0 2px 2px 0; align-self: end; justify-self: end; line-height: 1; overflow: hidden; }
   /* Bold vertical divider between hole cells */
   .sc-table td.hole-cell { border-right: 2px solid #aaa !important; }
@@ -1650,7 +1650,7 @@ function renderHoleCell(holeNum, strokeVal, gross, net, match, result) {
   let blStr = '';
   if (strokeVal === 1) blStr = '●';
   else if (strokeVal === 0.5) blStr = '½';
-  // BR: match score
+  // BR: match score — only show if played
   const brStr = (played && match !== null && !isNaN(match)) ? (match % 1 === 0 ? match : match.toFixed(1)) : '';
 
   return `<td class="${cls}">
@@ -1658,7 +1658,7 @@ function renderHoleCell(holeNum, strokeVal, gross, net, match, result) {
       <div class="hc-tl">${tlStr}</div>
       <div class="hc-tr">${trStr}</div>
       <div class="hc-bl">${blStr}</div>
-      <div class="hc-br">${brStr}</div>
+      ${brStr !== '' ? `<div class="hc-br">${brStr}</div>` : '<div></div>'}
     </div>
   </td>`;
 }
