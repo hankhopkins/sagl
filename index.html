@@ -607,7 +607,7 @@
   .rc-name-l  { padding: 7px 6px 7px 14px; font-weight: 500; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-name-r  { padding: 7px 14px 7px 6px; font-weight: 500; color: var(--charcoal); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-num     { padding: 7px 6px; text-align: right; font-size: 12px; color: var(--charcoal); }
-  .rc-pts     { padding: 7px 6px; text-align: right; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); }
+  .rc-pts     { padding: 7px 6px; text-align: center; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); }
   .rc-pts.gold { color: var(--gold); }
   .rc-vs      { padding: 7px 4px; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--mid-gray); border-left: 1px solid var(--light-gray); border-right: 1px solid var(--light-gray); }
   .rc-winner  { background: rgba(45,90,61,0.1); }
@@ -1392,8 +1392,8 @@ async function loadResults() {
         <div class="rc-pts ${p1cls} ${p1gold}">${fmt(p1pts)}</div>
         <div class="rc-vs">vs</div>
         <div class="rc-pts ${p2cls} ${p2gold}">${fmt(p2pts)}</div>
-        <div class="rc-num ${p2cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p2net)}</div>
         <div class="rc-num ${p2cls}">${fmt(p2gross)}</div>
+        <div class="rc-num ${p2cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p2net)}</div>
         <div class="rc-name-r ${p2cls}">${p2name}</div>
       </div>`;
     };
@@ -1421,7 +1421,7 @@ async function loadResults() {
             <div class="results-card-header">
               <span>Player</span><span>Gross</span><span>Net</span><span>Pts</span>
               <span class="vs-head">·</span>
-              <span>Pts</span><span>Net</span><span>Gross</span><span>Player</span>
+              <span>Pts</span><span>Gross</span><span>Net</span><span>Player</span>
             </div>
             ${renderMatchupRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2name, ma.p2pts, ma.p2gross, ma.p2net)}
             ${mb ? renderMatchupRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2name, mb.p2pts, mb.p2gross, mb.p2net) : ''}
