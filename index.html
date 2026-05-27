@@ -554,7 +554,7 @@
     <div class="table-wrap">
       <table id="ind-table">
         <thead><tr>
-          <th>Player</th><th>W</th><th>L</th><th>T</th><th>Pts/Match</th><th>Net Avg</th><th>Birdie Avg</th><th>Par Avg</th><th>Bogey Avg</th><th>Double+ Avg</th>
+          <th>Player</th><th>W</th><th>L</th><th>T</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Birdie- Avg</th><th>Par Avg</th><th>Bogey Avg</th><th>Double+ Avg</th>
         </tr></thead>
         <tbody id="ind-body">
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -901,6 +901,7 @@ async function loadIndividual() {
       <td>${fmtPts(r[3])}</td>
       <td>${fmtPts(r[4])}</td>
       <td>${fmtPts(r[6])}</td>
+      <td>${fmtPts(r[7])}</td>
       <td>${fmtPts(r[8])}</td>
       <td>${fmtPts(r[18])}</td>
       <td>${fmtPts(r[19])}</td>
