@@ -1,7 +1,8 @@
 """
 export_sheet.py
-Exports every sheet from the Stone Arch Golf League Google Spreadsheet
-into a single .xlsx file saved at data/Stone_Arch_Golf_League_Data_2026.xlsx
+Exports every sheet from the Stone Arch Golf League Google Spreadsheet into:
+  1. data/Stone_Arch_Golf_League_Data_2026.xlsx  (full workbook)
+  2. data.json  (all sheets as JSON, served via GitHub Pages for Claude to read)
 """
 
 import os
@@ -16,7 +17,6 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 def get_credentials():
     raw = os.environ["GOOGLE_CREDENTIALS"]
-    # Support both raw JSON and base64-encoded JSON
     try:
         info = json.loads(raw)
     except json.JSONDecodeError:
@@ -33,7 +33,8 @@ def main():
     sheets = meta.get("sheets", [])
 
     wb = Workbook()
-    wb.remove(wb.active)  # remove default empty sheet
+    wb.remove(wb.active)
+    all_data = {}
 
     for sheet in sheets:
         title = sheet["properties"]["title"]
@@ -45,15 +46,26 @@ def main():
         ).execute()
 
         values = result.get("values", [])
-        ws = wb.create_sheet(title=title)
 
+        # Add to xlsx
+        ws = wb.create_sheet(title=title)
         for row in values:
             ws.append(row)
 
+        # Add to JSON dict
+        all_data[title] = values
+
+    # Save xlsx
     os.makedirs("data", exist_ok=True)
-    output_path = "data/Stone_Arch_Golf_League_Data_2026.xlsx"
-    wb.save(output_path)
-    print(f"\nSaved to {output_path} ({len(sheets)} sheets)")
+    xlsx_path = "data/Stone_Arch_Golf_League_Data_2026.xlsx"
+    wb.save(xlsx_path)
+    print(f"Saved xlsx: {xlsx_path}")
+
+    # Save JSON to repo root (served by GitHub Pages)
+    json_path = "data.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(all_data, f, ensure_ascii=False)
+    print(f"Saved JSON: {json_path} ({len(all_data)} sheets)")
 
 if __name__ == "__main__":
     main()
