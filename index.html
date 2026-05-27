@@ -541,7 +541,12 @@
   .hc-tl { font-size: 9px; font-weight: 600; color: var(--mid-gray); padding: 3px 0 0 4px; line-height: 1; align-self: start; }
   .hc-tr { font-size: 15px; font-weight: 700; color: var(--gold); padding: 2px 3px 0 0; line-height: 1; text-align: right; align-self: start; }
   .hc-bl { font-size: 13px; font-weight: 600; color: var(--charcoal); padding: 0 0 3px 4px; line-height: 1; align-self: end; }
-  .hc-br { font-size: 10px; font-weight: 500; color: var(--green-mid); padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
+  .hc-br { font-size: 12px; font-weight: 600; color: var(--green-mid); padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
+  /* Bold vertical divider between hole cells */
+  .sc-table td.hole-cell { border-right: 2px solid var(--border) !important; }
+  .sc-table td.hole-cell:last-of-type { border-right: 1px solid var(--light-gray) !important; }
+  /* Bold horizontal divider between players within a matchup */
+  .sc-table tr.sc-matchup-divider td { border-top: 2px solid var(--border) !important; }
   .pts-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--green-dark); color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; min-width: 36px; }
   .pts-badge.gold-badge { background: var(--gold); color: var(--green-dark); }
   /* RESPONSIVE */
@@ -1297,38 +1302,49 @@ function parseRawScores(rawRows) {
   function parseScores(row) {
     if (!row) return Array(9).fill(null);
     return row.slice(5, 14).map(v => {
-      if (v === null || v === undefined || v === 'x' || v === '') return null;
+      if (v === null || v === undefined || v === 'x' || v === '' || String(v).startsWith('#')) return null;
       const n = parseFloat(v);
       return isNaN(n) ? null : n;
     });
   }
 
-  let i = 0;
-  while (i < rawRows.length) {
-    const r = rawRows[i];
-    if (r && r[0] === 'Name') {
-      const p1nameRow = rawRows[i + 1] || null;
-      const p2nameRow = rawRows[i + 2] || null;
-      const p1name = p1nameRow ? String(p1nameRow[0] || '').trim() : '';
-      const p2name = p2nameRow ? String(p2nameRow[0] || '').trim() : '';
+  // Find all 'Name' header row indices
+  const nameRows = [];
+  for (let i = 0; i < rawRows.length; i++) {
+    if (rawRows[i] && rawRows[i][0] === 'Name') nameRows.push(i);
+  }
 
-      if (p1name) {
-        playerData[p1name] = {
-          gross:   parseScores(rawRows[i + 3] || null),
-          net:     parseScores(rawRows[i + 4] || null),
-          results: parseScores(rawRows[i + 6] || null)
-        };
+  for (const nameIdx of nameRows) {
+    const p1nameRow = rawRows[nameIdx + 1] || null;
+    const p2nameRow = rawRows[nameIdx + 2] || null;
+    const p1name = p1nameRow ? String(p1nameRow[0] || '').trim() : '';
+    const p2name = p2nameRow ? String(p2nameRow[0] || '').trim() : '';
+
+    // Find the Gross rows after the name rows by scanning forward
+    let grossCount = 0;
+    let p1grossIdx = null, p2grossIdx = null;
+    for (let j = nameIdx + 3; j < Math.min(nameIdx + 15, rawRows.length); j++) {
+      if (rawRows[j] && rawRows[j][0] === 'Gross') {
+        if (grossCount === 0) p1grossIdx = j;
+        else if (grossCount === 1) p2grossIdx = j;
+        grossCount++;
       }
-      if (p2name) {
-        playerData[p2name] = {
-          gross:   parseScores(rawRows[i + 7]  || null),
-          net:     parseScores(rawRows[i + 8]  || null),
-          results: parseScores(rawRows[i + 10] || null)
-        };
-      }
-      i += 12;
-    } else {
-      i++;
+      if (grossCount >= 2) break;
+    }
+
+    if (p1name && p1grossIdx !== null) {
+      playerData[p1name] = {
+        gross:   parseScores(rawRows[p1grossIdx]),
+        net:     parseScores(rawRows[p1grossIdx + 1]),
+        results: parseScores(rawRows[p1grossIdx + 3])
+      };
+    }
+    if (p2name && p2grossIdx !== null) {
+      playerData[p2name] = {
+        gross:   parseScores(rawRows[p2grossIdx]),
+        net:     parseScores(rawRows[p2grossIdx + 1]),
+        results: parseScores(rawRows[p2grossIdx + 3])
+      };
     }
   }
   return playerData;
@@ -1525,7 +1541,7 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
       ? `<span class="pts-badge${totalPts >= 5 ? ' gold-badge' : ''}">${totalPts % 1 === 0 ? totalPts : totalPts.toFixed(1)}</span>`
       : `<span style="color:var(--mid-gray);font-size:12px">—</span>`;
 
-    html += `<tr class="sc-matchup">
+    html += `<tr class="sc-matchup${pd.name === p2name ? ' sc-matchup-divider' : ''}">
       <td>${pd.name}</td>
       <td style="color:var(--mid-gray);font-size:11px">${roundDateStr}</td>
       <td style="text-align:center">${currentHdcp}</td>
