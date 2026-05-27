@@ -1144,15 +1144,18 @@ async function loadDirectory() {
     const rows = tableRows(table).filter(r => r[1] && r[1] !== 'Name');
     const teams = teamNames();
     const tbody = document.getElementById('dir-body');
-    tbody.innerHTML = rows.map(r => {
+    tbody.innerHTML = rows.map((r, i) => {
       const tNum = parseInt(r[0]);
-      return `<tr>
-        <td style="color:var(--mid-gray); font-size:12px; text-align:center">${tNum}</td>
-        <td class="team-name">${r[1]}</td>
-        <td style="font-size:12px">${r[2] || ''}</td>
-        <td><span class="hdcp-pill">${r[4]}</span></td>
-        <td style="color:var(--mid-gray); font-size:12px">${r[6]}</td>
-        <td style="font-size:12px; color:var(--green-mid)">${r[3] || ''}</td>
+      const prevTNum = i > 0 ? parseInt(rows[i-1][0]) : tNum;
+      const isNewTeam = tNum !== prevTNum;
+      const dividerStyle = isNewTeam && i > 0 ? 'border-top: 2px solid var(--border);' : '';
+      return `<tr style="${dividerStyle}">
+        <td style="color:var(--mid-gray); font-size:12px; text-align:center; ${dividerStyle}">${tNum}</td>
+        <td class="team-name" style="${dividerStyle}">${r[1]}</td>
+        <td style="font-size:12px; ${dividerStyle}">${r[2] || ''}</td>
+        <td style="${dividerStyle}"><span class="hdcp-pill">${r[4]}</span></td>
+        <td style="color:var(--mid-gray); font-size:12px; ${dividerStyle}">${r[6]}</td>
+        <td style="font-size:12px; color:var(--green-mid); ${dividerStyle}">${r[3] || ''}</td>
       </tr>`;
     }).join('');
 
