@@ -1377,6 +1377,39 @@ async function loadResults() {
       return;
     }
 
+    // Fetch sc sheets to get match dates
+    const weekDates = {};
+    await Promise.all(displayWeeks.map(async w => {
+      const scSheet = SC_SHEETS[w.weekNum + '_front'];
+      if (!scSheet) return;
+      try {
+        const t = await fetchSheet(scSheet);
+        const scRows = tableRows(t);
+        const dates = [];
+        let si = 4;
+        while (si < scRows.length) {
+          const sr = scRows[si];
+          if (sr && sr[0] && typeof sr[0] === 'string' && sr[0].includes('Round Date')) {
+            // Date is in col[1] of the Round Date row
+            let dateVal = sr[1] || null;
+            // Or in col[0] of the second player row
+            if (!dateVal && scRows[si+2]) dateVal = scRows[si+2][0];
+            let dateStr = '';
+            if (dateVal && typeof dateVal === 'string' && !dateVal.includes('Date')) {
+              dateStr = dateVal;
+            } else if (dateVal && typeof dateVal === 'number') {
+              const d = new Date((dateVal - 25569) * 86400 * 1000);
+              dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+            }
+            dates.push(dateStr);
+            si += 3;
+            while (si < scRows.length && (!scRows[si] || !scRows[si][0] || scRows[si][0] === '')) si++;
+          } else { si++; }
+        }
+        weekDates[w.weekNum] = dates;
+      } catch(e) { weekDates[w.weekNum] = []; }
+    }));
+
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
 
     const renderMatchupRow = (p1name, p1pts, p1gross, p1net, p2name, p2pts, p2gross, p2net) => {
@@ -1402,6 +1435,7 @@ async function loadResults() {
     let html = '';
     for (const w of displayWeeks) {
       const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
+      const dates = weekDates[w.weekNum] || [];
 
       html += `<div class="results-week-section">
         <div class="section-title"><span class="dot"></span>Week ${w.weekNum} — ${w.course}
@@ -1410,23 +1444,27 @@ async function loadResults() {
 
       if (anyPlayed) {
         html += `<div class="results-grid">`;
+        let cardIdx = 0;
         for (let k = 0; k < w.matchups.length; k += 2) {
           const ma = w.matchups[k];
           const mb = w.matchups[k + 1];
           if (!ma) continue;
-          // Only render card if at least one matchup has data
           const hasData = ma.p1pts !== null || ma.p2pts !== null ||
                           (mb && (mb.p1pts !== null || mb.p2pts !== null));
-          if (!hasData) continue;
+          if (!hasData) { cardIdx++; continue; }
+          // Each card = 2 sc blocks; pick the first available date
+          const dateStr = dates[cardIdx * 2] || dates[cardIdx * 2 + 1] || '';
           html += `<div class="results-card">
             <div class="results-card-header">
               <span>Player</span><span>Gross</span><span>Net</span><span class="pts-head">Pts</span>
               <span class="vs-head">·</span>
               <span class="pts-head">Pts</span><span>Gross</span><span>Net</span><span>Player</span>
             </div>
+            ${dateStr ? `<div style="padding:3px 14px;font-size:11px;color:var(--mid-gray);background:var(--green-pale);border-bottom:1px solid var(--border);">${dateStr}</div>` : ''}
             ${renderMatchupRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2name, ma.p2pts, ma.p2gross, ma.p2net)}
             ${mb ? renderMatchupRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2name, mb.p2pts, mb.p2gross, mb.p2net) : ''}
           </div>`;
+          cardIdx++;
         }
         html += `</div>`;
       }
