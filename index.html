@@ -585,6 +585,12 @@
           <option value="back">Back 9</option>
         </select>
       </div>
+      <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Matchup</label>
+        <select id="sc-matchup" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option value="0">Loading…</option>
+        </select>
+      </div>
     </div>
     <div id="sc-content">
       <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
@@ -1218,7 +1224,119 @@ function fmtStroke(v) {
   return '<span class="sc-stroke">' + whole + '½</span>';
 }
 
-async function loadScorecard() {
+// Cache fetched sheet data so matchup dropdown changes don't re-fetch
+let scCache = { key: null, rows: null };
+
+function trunc4(name) {
+  if (!name) return '';
+  // Split on space, take last word (last name), truncate to 4 chars, capitalize first
+  const parts = name.trim().split(' ');
+  const last = parts[parts.length - 1];
+  return last.charAt(0).toUpperCase() + last.slice(1, 4);
+}
+
+function matchupLabel4(p1name, p2name) {
+  return trunc4(p1name) + ' vs ' + trunc4(p2name);
+}
+
+// Parse all matchup blocks from rows, return array of { index, p1name, p2name, p1row, p2row, dateRow }
+function parseMatchupBlocks(rows) {
+  const blocks = [];
+  let i = 4;
+  while (i < rows.length) {
+    const r = rows[i];
+    if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date')) {
+      const p1row = i + 1 < rows.length ? rows[i + 1] : null;
+      const p2row = i + 2 < rows.length ? rows[i + 2] : null;
+      const p1name = p1row ? (p1row[4] || '') : '';
+      const p2name = p2row ? (p2row[4] || '') : '';
+      blocks.push({ rowIndex: i, dateRow: r, p1name, p2name, p1row, p2row });
+      i += 3;
+      while (i < rows.length && (!rows[i] || !rows[i][0] || rows[i][0] === '')) i++;
+    } else {
+      i++;
+    }
+  }
+  return blocks;
+}
+
+function populateMatchupDropdown(blocks) {
+  const sel = document.getElementById('sc-matchup');
+  const prev = sel.value;
+  sel.innerHTML = blocks.map((b, idx) => {
+    const label = matchupLabel4(b.p1name, b.p2name) || ('Matchup ' + (idx + 1));
+    return `<option value="${idx}">${label}</option>`;
+  }).join('');
+  // Try to preserve selection, else default to 0
+  const prevIdx = parseInt(prev);
+  if (!isNaN(prevIdx) && prevIdx < blocks.length) {
+    sel.value = prevIdx;
+  } else {
+    sel.value = 0;
+  }
+}
+
+function renderMatchupBlock(block, matchupNum, hdcpCells, nine) {
+  const { dateRow, p1name, p2name, p1row, p2row } = block;
+  const roundDateRaw = dateRow[1] || '';
+  let roundDateStr = '';
+  if (roundDateRaw && typeof roundDateRaw === 'string' && roundDateRaw.trim() !== '') {
+    roundDateStr = roundDateRaw;
+  } else if (roundDateRaw && typeof roundDateRaw === 'number') {
+    const d = new Date((roundDateRaw - 25569) * 86400 * 1000);
+    roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+  }
+  const isPlayed = roundDateStr !== '';
+  const isGold = matchupNum % 2 === 0;
+  const hdrBg = isGold ? '#d4a843' : '#1a3a2a';
+  const hdrColor = isGold ? '#1a3a2a' : '#d4a843';
+  const label = (p1name && p2name) ? (p1name + ' v ' + p2name) : 'Matchup';
+
+  const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
+  const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
+  const higherCH = Math.max(p1ch, p2ch);
+  const diff = Math.round((Math.max(p1ch, p2ch) - Math.min(p1ch, p2ch)) * 2) / 2;
+
+  let html = `<tr><td colspan="14" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}</td></tr>`;
+
+  for (const pr of [p1row, p2row]) {
+    if (!pr) continue;
+    const playerName = pr[4] || '';
+    if (!playerName) continue;
+    const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
+    const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]) : 0;
+    const dateStr = isPlayed ? roundDateStr : '';
+    const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
+    const rowPlayed = dateStr !== '';
+    const strokesGiven = courseHdcp === higherCH ? diff : 0;
+    const fullStrokes = Math.floor(strokesGiven);
+    const hasHalf = (strokesGiven % 1) === 0.5;
+
+    html += `<tr class="sc-matchup" style="${rowPlayed ? 'background:rgba(232,243,236,0.4)' : ''}">
+      <td>${playerName} ${rowPlayed ? '<span style="font-size:10px;color:var(--green-mid);font-weight:500">✓</span>' : ''}</td>
+      <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
+      <td style="text-align:center">${currentHdcp}</td>
+      <td style="text-align:center">${courseHdcp.toFixed(1)}</td>
+      ${(() => {
+        if (strokesGiven === 0) return hdcpCells.map(() => '<td></td>').join('');
+        const sortedHdcps = [...hdcpCells].filter(h => h).map(Number).sort((a,b) => a-b);
+        const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
+        const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
+        return hdcpCells.map((holeHdcp) => {
+          if (!holeHdcp) return '<td></td>';
+          const h = Number(holeHdcp);
+          if (strokeHoles.has(h)) return '<td>' + fmtStroke(1) + '</td>';
+          if (halfHole && h === halfHole) return '<td>' + fmtStroke(0.5) + '</td>';
+          return '<td></td>';
+        }).join('');
+      })()}
+      <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
+    </tr>`;
+  }
+  return html;
+}
+
+async function loadScorecard(resetMatchup = false) {
   const week = document.getElementById('sc-week').value;
   const nine = document.getElementById('sc-nine').value;
   const sheetKey = week + '_' + nine;
@@ -1230,178 +1348,101 @@ async function loadScorecard() {
     return;
   }
 
-  container.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>';
-
-  try {
-    const table = await fetchSheet(sheetName);
-    const rows = tableRows(table);
-    if (!rows || rows.length < 4) {
-      container.innerHTML = '<div class="loading-msg">No data yet for this scorecard.</div>';
+  // Fetch sheet data (use cache if same sheet)
+  let rows;
+  if (scCache.key === sheetKey && scCache.rows) {
+    rows = scCache.rows;
+  } else {
+    container.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>';
+    try {
+      const table = await fetchSheet(sheetName);
+      rows = tableRows(table);
+      scCache = { key: sheetKey, rows };
+    } catch(e) {
+      container.innerHTML = '<div class="loading-msg">Could not load scorecard — sheet may be updating.</div>';
+      console.error(e);
       return;
     }
-
-    // Row 0 = blank/header, Row 1 = course name row, Row 2 = rating/slope
-    // Row 3 = tee/par row, Row 4 = handicap row
-    // Then matchup blocks follow
-
-    const courseName = rows[1][1] || '';
-    const teeInfo = rows[1][0] || '';
-    const rating = rows[1][2] || '';
-    const slope = rows[1][3] || '';
-    // Actual row structure from Google Sheets (0-indexed):
-    // 0: null,null,null,'Slope','Par', hole numbers
-    // 1: null,null,35.3,'128','36', yardages  <- rating col2, slope col3
-    // 2: null,null,null,'Front','Par', par values col5-13, total col14
-    // 3: null,null,null,'Tees','Handicap', hole handicaps col5-13
-    // 4: 'Round Date:', all null  <- matchup separator
-    // 5: "Today's Date:", hdcp, courseHdcp, tee, playerName, holes col5-13, total col14
-    // 6: date, hdcp, courseHdcp, tee, playerName, holes col5-13, total col14
-    const parRow = rows[2];
-    const hdcpRow = rows[3];
-    const courseNameMap = {
-      'edinburgh_sc': 'Edinburgh', 'edinburgh_back_sc': 'Edinburgh',
-      'keller_sc': 'Keller', 'keller_back_sc': 'Keller',
-      'chaska_town_sc': 'Chaska Town', 'chaska_town_back_sc': 'Chaska Town',
-      'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
-      'braemar_sc': 'Braemar', 'braemar_back_sc': 'Braemar',
-      'pio_creek_sc': 'Pioneer Creek', 'pio_creek_back_sc': 'Pioneer Creek'
-    };
-    const actualCourseName = courseNameMap[sheetName] || sheetName;
-    const actualRating = rows[1] ? (rows[1][2] || '') : '';
-    const actualSlope = rows[1] ? (rows[1][3] || '') : '';
-    const teeColor = rows[5] ? (rows[5][3] || '') : '';
-
-    const side = nine === 'back' ? 'Back' : 'Front';
-    const holeStart = nine === 'back' ? 10 : 1;
-    const holes = Array.from({length: 9}, (_, i) => holeStart + i);
-
-    // Yardage is in row index 1, cols 5-13, total in col 14
-    const yardRow = rows[1];
-    const yardCells = yardRow ? yardRow.slice(5, 14) : [];
-    const yardTotal = yardRow ? (yardRow[14] || '') : '';
-    const parCells = parRow.slice(5, 14);
-    const parTotal = parRow[14] || '';
-    const hdcpCells = hdcpRow.slice(5, 14);
-
-    let html = `<div class="sc-course-header">
-      <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
-      <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} &nbsp;·&nbsp; Slope ${actualSlope}</span>
-    </div>
-    <div class="sc-wrap"><table class="sc-table">
-      <thead><tr>
-        <th>Hole</th>
-        <th></th><th></th><th></th>
-        ${holes.map(h => '<th>' + h + '</th>').join('')}
-        <th>Total</th>
-      </tr></thead>
-      <tbody>`;
-
-    html += `<tr class="sc-hdcp"><td>Yards</td><td></td><td></td><td></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td></tr>`;
-    html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
-    html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td></td><td></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
-
-    html += `<tr style="background:var(--green-dark)">
-      <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left">Player</th>
-      <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Date</th>
-      <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Hdcp</th>
-      <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
-      ${holes.map(() => '<th style="color:#fff;padding:7px 10px;font-size:10px"></th>').join('')}
-      <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Strokes</th>
-    </tr>`;
-
-    // Parse matchup blocks
-    // Col A(0)=label, B(1)=Current Hdcp, C(2)=Course Hdcp, D(3)=Tees, E(4)=Player Name, F-N(5-13)=holes 1-9, O(14)=Total strokes
-    // Matchup header row: col A = "Round Date:", col C = "Player1 v Player2"
-    // Player rows follow immediately after
-    let i = 4;
-    let matchupCount = 0;
-    while (i < rows.length) {
-      const r = rows[i];
-      if (r[0] && typeof r[0] === 'string' && r[0].includes('Round Date')) {
-        matchupCount++;
-        const p1row = i + 1 < rows.length ? rows[i + 1] : null;
-        const p2row = i + 2 < rows.length ? rows[i + 2] : null;
-        const p1name = p1row ? (p1row[4] || '') : '';
-        const p2name = p2row ? (p2row[4] || '') : '';
-        const matchupLabel = p1name && p2name ? p1name + ' v ' + p2name : '';
-        // Date is in col B (index 1) of the Round Date row
-        const roundDateRaw = r[1] || '';
-        let roundDateStr = '';
-        if (roundDateRaw && typeof roundDateRaw === 'string' && roundDateRaw.trim() !== '') {
-          roundDateStr = roundDateRaw;
-        } else if (roundDateRaw && typeof roundDateRaw === 'number') {
-          const d = new Date((roundDateRaw - 25569) * 86400 * 1000);
-          roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
-        }
-        const isPlayed = roundDateStr !== '';
-        const isGold = matchupCount % 2 === 0;
-        const hdrBg = isGold ? '#d4a843' : '#1a3a2a';
-        const hdrColor = isGold ? '#1a3a2a' : '#d4a843';
-        html += `<tr><td colspan="14" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${matchupLabel || 'Matchup'}</td></tr>`;
-        // Get both players' course handicaps to compute differential
-        const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
-        const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
-        const higherCH = Math.max(p1ch, p2ch);
-        const lowerCH = Math.min(p1ch, p2ch);
-        const diff = Math.round((higherCH - lowerCH) * 2) / 2;
-
-        for (let p = 1; p <= 2; p++) {
-          if (i + p < rows.length) {
-            const pr = rows[i + p];
-            const playerName = pr[4] || '';
-            if (!playerName) continue;
-            const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
-            const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]) : 0;
-            const dateStr = isPlayed ? roundDateStr : '';
-            const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
-            const rowPlayed = dateStr !== '';
-            // Only the higher handicap player receives strokes
-            const strokesGiven = courseHdcp === higherCH ? diff : 0;
-            const fullStrokes = Math.floor(strokesGiven);
-            const hasHalf = (strokesGiven % 1) === 0.5;
-            html += `<tr class="sc-matchup" style="${rowPlayed ? 'background:rgba(232,243,236,0.4)' : ''}">
-              <td>${playerName} ${rowPlayed ? '<span style="font-size:10px;color:var(--green-mid);font-weight:500">✓</span>' : ''}</td>
-              <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
-              <td style="text-align:center">${currentHdcp}</td>
-              <td style="text-align:center">${courseHdcp.toFixed(1)}</td>
-              ${(() => {
-                if (strokesGiven === 0) return hdcpCells.map(() => '<td></td>').join('');
-                // Sort hole handicaps to find which holes get strokes
-                // Each stroke goes to the hole with the next lowest handicap number
-                const sortedHdcps = [...hdcpCells].filter(h => h).map(Number).sort((a,b) => a-b);
-                const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
-                const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
-                return hdcpCells.map((holeHdcp) => {
-                  if (!holeHdcp) return '<td></td>';
-                  const h = Number(holeHdcp);
-                  if (strokeHoles.has(h)) return '<td>' + fmtStroke(1) + '</td>';
-                  if (halfHole && h === halfHole) return '<td>' + fmtStroke(0.5) + '</td>';
-                  return '<td></td>';
-                }).join('');
-              })()}
-              <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
-            </tr>`;
-          }
-        }
-        // Skip past the 2 player rows, then skip any blank rows
-        i += 3;
-        while (i < rows.length && (!rows[i] || !rows[i][0] || rows[i][0] === '')) i++;
-      } else {
-        i++;
-      }
-    }
-
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-
-  } catch(e) {
-    container.innerHTML = '<div class="loading-msg">Could not load scorecard — sheet may be updating.</div>';
-    console.error(e);
   }
+
+  if (!rows || rows.length < 4) {
+    container.innerHTML = '<div class="loading-msg">No data yet for this scorecard.</div>';
+    return;
+  }
+
+  const parRow = rows[2];
+  const hdcpRow = rows[3];
+  const courseNameMap = {
+    'edinburgh_sc': 'Edinburgh', 'edinburgh_back_sc': 'Edinburgh',
+    'keller_sc': 'Keller', 'keller_back_sc': 'Keller',
+    'chaska_town_sc': 'Chaska Town', 'chaska_town_back_sc': 'Chaska Town',
+    'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
+    'braemar_sc': 'Braemar', 'braemar_back_sc': 'Braemar',
+    'pio_creek_sc': 'Pioneer Creek', 'pio_creek_back_sc': 'Pioneer Creek'
+  };
+  const actualCourseName = courseNameMap[sheetName] || sheetName;
+  const actualRating = rows[1] ? (rows[1][2] || '') : '';
+  const actualSlope = rows[1] ? (rows[1][3] || '') : '';
+  const teeColor = rows[5] ? (rows[5][3] || '') : '';
+
+  const side = nine === 'back' ? 'Back' : 'Front';
+  const holeStart = nine === 'back' ? 10 : 1;
+  const holes = Array.from({length: 9}, (_, i) => holeStart + i);
+
+  const yardRow = rows[1];
+  const yardCells = yardRow ? yardRow.slice(5, 14) : [];
+  const yardTotal = yardRow ? (yardRow[14] || '') : '';
+  const parCells = parRow.slice(5, 14);
+  const parTotal = parRow[14] || '';
+  const hdcpCells = hdcpRow.slice(5, 14);
+
+  // Parse all matchup blocks and populate dropdown
+  const blocks = parseMatchupBlocks(rows);
+  if (resetMatchup) document.getElementById('sc-matchup').value = 0;
+  populateMatchupDropdown(blocks);
+
+  const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
+  const block = blocks[selectedIdx];
+
+  if (!block) {
+    container.innerHTML = '<div class="loading-msg">No matchups found for this scorecard.</div>';
+    return;
+  }
+
+  let html = `<div class="sc-course-header">
+    <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
+    <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} &nbsp;·&nbsp; Slope ${actualSlope}</span>
+  </div>
+  <div class="sc-wrap"><table class="sc-table">
+    <thead><tr>
+      <th>Hole</th>
+      <th></th><th></th><th></th>
+      ${holes.map(h => '<th>' + h + '</th>').join('')}
+      <th>Total</th>
+    </tr></thead>
+    <tbody>`;
+
+  html += `<tr class="sc-hdcp"><td>Yards</td><td></td><td></td><td></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td></tr>`;
+  html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td></td><td></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
+
+  html += `<tr style="background:var(--green-dark)">
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left">Player</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Date</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Hdcp</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
+    ${holes.map(() => '<th style="color:#fff;padding:7px 10px;font-size:10px"></th>').join('')}
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Strokes</th>
+  </tr>`;
+
+  html += renderMatchupBlock(block, selectedIdx, hdcpCells, nine);
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
 }
 
-document.getElementById('sc-week').addEventListener('change', loadScorecard);
-document.getElementById('sc-nine').addEventListener('change', loadScorecard);
+document.getElementById('sc-week').addEventListener('change', () => { scCache = { key: null, rows: null }; loadScorecard(true); });
+document.getElementById('sc-nine').addEventListener('change', () => { scCache = { key: null, rows: null }; loadScorecard(true); });
+document.getElementById('sc-matchup').addEventListener('change', () => loadScorecard(false));
 
 /* INIT */
 buildSchedule();
@@ -1411,7 +1452,7 @@ loadDirectory();
 loadSkins();
 loadTOTW();
 loadHdcpChart();
-loadScorecard();
+loadScorecard(true);
 </script>
 </body>
 </html>
