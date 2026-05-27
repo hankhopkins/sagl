@@ -902,10 +902,10 @@ async function loadIndividual() {
       <td>${fmtPts(r[4])}</td>
       <td>${fmtPts(r[6])}</td>
       <td>${fmtPts(r[8])}</td>
-      <td>${fmtPts(r[16])}</td>
-      <td>${fmtPts(r[17])}</td>
       <td>${fmtPts(r[18])}</td>
       <td>${fmtPts(r[19])}</td>
+      <td>${fmtPts(r[20])}</td>
+      <td>${fmtPts(r[21])}</td>
     </tr>`).join('');
   } catch(e) {
     document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
