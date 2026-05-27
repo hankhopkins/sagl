@@ -618,6 +618,15 @@
   .rc-loser   { background: rgba(180,40,40,0.07); }
   .rc-tied    { background: rgba(180,180,180,0.1); }
 
+  /* MOBILE ZOOM */
+  #sc-content.zoomed-out {
+    overflow-x: hidden;
+  }
+  #sc-content.zoomed-out .sc-wrap {
+    transform-origin: top left;
+    overflow: visible;
+  }
+
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -719,6 +728,13 @@
     </div>
     <div id="sc-content">
       <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
+    </div>
+    <div id="sc-zoom-bar" style="margin-top:10px; display:none;">
+      <button id="sc-zoom-btn" onclick="toggleScZoom()" style="
+        padding:6px 14px; font-size:12px; font-family:inherit; cursor:pointer;
+        border:1px solid var(--border); border-radius:8px;
+        background:var(--white); color:var(--mid-gray); font-weight:500;
+      ">🔍 Zoom Out</button>
     </div>
   </div>
 
@@ -1971,13 +1987,45 @@ async function loadScorecard(resetMatchup = false) {
   </div>`;
 
   container.innerHTML = html;
+
+  // Show zoom button and reset zoom state
+  scZoomed = false;
+  const zoomBar = document.getElementById('sc-zoom-bar');
+  if (zoomBar) zoomBar.style.display = 'block';
+  const btn = document.getElementById('sc-zoom-btn');
+  if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
 }
 
 document.getElementById('sc-week').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
   updateNineDropdown().then(() => loadScorecard(true));
 });
-document.getElementById('sc-matchup').addEventListener('change', () => {
+
+let scZoomed = false;
+function toggleScZoom() {
+  const content = document.getElementById('sc-content');
+  const btn = document.getElementById('sc-zoom-btn');
+  const wrap = content.querySelector('.sc-wrap');
+  if (!wrap) return;
+  scZoomed = !scZoomed;
+  if (scZoomed) {
+    const scale = content.offsetWidth / wrap.scrollWidth;
+    wrap.style.transform = `scale(${Math.min(scale, 1)})`;
+    wrap.style.transformOrigin = 'top left';
+    wrap.style.marginBottom = `-${wrap.scrollHeight * (1 - Math.min(scale, 1))}px`;
+    btn.textContent = '🔍 Zoom In';
+    btn.style.background = 'var(--green-pale)';
+    btn.style.color = 'var(--green-dark)';
+    btn.style.borderColor = 'var(--green-mid)';
+  } else {
+    wrap.style.transform = '';
+    wrap.style.marginBottom = '';
+    btn.textContent = '🔍 Zoom Out';
+    btn.style.background = 'var(--white)';
+    btn.style.color = 'var(--mid-gray)';
+    btn.style.borderColor = 'var(--border)';
+  }
+}document.getElementById('sc-matchup').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
   updateNineDropdown().then(() => loadScorecard(false));
 });
