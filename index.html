@@ -1239,7 +1239,7 @@ function matchupLabel4(p1name, p2name) {
   return trunc4(p1name) + ' vs ' + trunc4(p2name);
 }
 
-// Parse all matchup blocks from rows, return array of { index, p1name, p2name, p1row, p2row, dateRow }
+// Parse all individual matchup blocks from rows
 function parseMatchupBlocks(rows) {
   const blocks = [];
   let i = 4;
@@ -1260,16 +1260,44 @@ function parseMatchupBlocks(rows) {
   return blocks;
 }
 
-function populateMatchupDropdown(blocks) {
+// Group individual blocks into team matchups (pairs: block 0+1, block 2+3, etc.)
+function groupTeamMatchups(blocks) {
+  const teams = [];
+  for (let i = 0; i < blocks.length; i += 2) {
+    const a = blocks[i];
+    const b = blocks[i + 1];
+    if (!b) {
+      // Odd block out — treat as solo
+      teams.push({ blockA: a, blockB: null });
+    } else {
+      teams.push({ blockA: a, blockB: b });
+    }
+  }
+  return teams;
+}
+
+function teamMatchupLabel(tm) {
+  const { blockA, blockB } = tm;
+  // blockA: p1name vs p2name (individual match 1)
+  // blockB: p1name vs p2name (individual match 2)
+  // Team label: "A1 & B1 vs A2 & B2"
+  const a1 = trunc4(blockA.p1name);
+  const b1 = blockB ? trunc4(blockB.p1name) : '';
+  const a2 = trunc4(blockA.p2name);
+  const b2 = blockB ? trunc4(blockB.p2name) : '';
+  if (b1 && b2) return `${a1} & ${b1} vs ${a2} & ${b2}`;
+  return `${a1} vs ${a2}`;
+}
+
+function populateMatchupDropdown(teamMatchups) {
   const sel = document.getElementById('sc-matchup');
   const prev = sel.value;
-  sel.innerHTML = blocks.map((b, idx) => {
-    const label = matchupLabel4(b.p1name, b.p2name) || ('Matchup ' + (idx + 1));
+  sel.innerHTML = teamMatchups.map((tm, idx) => {
+    const label = teamMatchupLabel(tm) || ('Matchup ' + (idx + 1));
     return `<option value="${idx}">${label}</option>`;
   }).join('');
-  // Try to preserve selection, else default to 0
   const prevIdx = parseInt(prev);
-  if (!isNaN(prevIdx) && prevIdx < blocks.length) {
+  if (!isNaN(prevIdx) && prevIdx < teamMatchups.length) {
     sel.value = prevIdx;
   } else {
     sel.value = 0;
@@ -1396,15 +1424,16 @@ async function loadScorecard(resetMatchup = false) {
   const parTotal = parRow[14] || '';
   const hdcpCells = hdcpRow.slice(5, 14);
 
-  // Parse all matchup blocks and populate dropdown
+  // Parse all matchup blocks, group into team matchups, populate dropdown
   const blocks = parseMatchupBlocks(rows);
+  const teamMatchups = groupTeamMatchups(blocks);
   if (resetMatchup) document.getElementById('sc-matchup').value = 0;
-  populateMatchupDropdown(blocks);
+  populateMatchupDropdown(teamMatchups);
 
   const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
-  const block = blocks[selectedIdx];
+  const teamMatchup = teamMatchups[selectedIdx];
 
-  if (!block) {
+  if (!teamMatchup) {
     container.innerHTML = '<div class="loading-msg">No matchups found for this scorecard.</div>';
     return;
   }
@@ -1435,7 +1464,11 @@ async function loadScorecard(resetMatchup = false) {
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Strokes</th>
   </tr>`;
 
-  html += renderMatchupBlock(block, selectedIdx, hdcpCells, nine);
+  // Render both individual matchup blocks for this team matchup
+  html += renderMatchupBlock(teamMatchup.blockA, 0, hdcpCells, nine);
+  if (teamMatchup.blockB) {
+    html += renderMatchupBlock(teamMatchup.blockB, 1, hdcpCells, nine);
+  }
   html += '</tbody></table></div>';
   container.innerHTML = html;
 }
