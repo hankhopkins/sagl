@@ -517,6 +517,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
+    align-items: stretch;
+  }
+  .hc-tl {
+    font-size: 9px; font-weight: 600; color: var(--mid-gray);
+    padding: 2px 0 0 3px; line-height: 1;
+    align-self: start; justify-self: start;
+    grid-column: 1; grid-row: 1;
   }
   .hole-cell.won { background: rgba(45,90,61,0.18) !important; }
   .hole-cell.lost { background: rgba(180,40,40,0.13) !important; }
@@ -538,15 +545,14 @@
     background: rgba(0,0,0,0.1);
     pointer-events: none;
   }
-  .hc-tl { font-size: 9px; font-weight: 600; color: var(--mid-gray); padding: 3px 0 0 4px; line-height: 1; align-self: start; }
   .hc-tr { font-size: 15px; font-weight: 700; color: var(--gold); padding: 2px 3px 0 0; line-height: 1; text-align: right; align-self: start; }
   .hc-bl { font-size: 13px; font-weight: 600; color: var(--charcoal); padding: 0 0 3px 4px; line-height: 1; align-self: end; }
-  .hc-br { font-size: 12px; font-weight: 600; color: var(--green-mid); padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
+  .hc-br { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
   /* Bold vertical divider between hole cells */
-  .sc-table td.hole-cell { border-right: 2px solid var(--border) !important; }
+  .sc-table td.hole-cell { border-right: 2px solid #aaa !important; }
   .sc-table td.hole-cell:last-of-type { border-right: 1px solid var(--light-gray) !important; }
   /* Bold horizontal divider between players within a matchup */
-  .sc-table tr.sc-matchup-divider td { border-top: 2px solid var(--border) !important; }
+  .sc-table tr.sc-matchup-divider td { border-top: 2px solid #aaa !important; }
   .pts-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--green-dark); color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; min-width: 36px; }
   .pts-badge.gold-badge { background: var(--gold); color: var(--green-dark); }
   /* RESPONSIVE */
@@ -1435,8 +1441,6 @@ function populateMatchupDropdown(teamMatchups) {
 }
 
 function renderHoleCell(holeNum, strokeVal, gross, net, result) {
-  // strokeVal: 0, 0.5, or 1
-  // result: 1=win(green), 0.5=tie(gray), 0=loss(red), null=unplayed
   const played = gross !== null && !isNaN(gross);
   let cls = 'hole-cell unplayed';
   if (played && result !== null) {
