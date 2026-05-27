@@ -618,6 +618,10 @@
   .rc-loser   { background: rgba(180,40,40,0.07); }
   .rc-tied    { background: rgba(180,180,180,0.1); }
 
+  /* MOBILE ZOOM */
+  #sc-content { overflow: hidden; }
+  #sc-content .sc-wrap { overflow-x: auto; }
+
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -2000,16 +2004,33 @@ function applyScZoom() {
   const wrap = content ? content.querySelector('.sc-wrap') : null;
   const btn = document.getElementById('sc-zoom-btn');
   if (!wrap) return;
+
   if (!scZoomed) {
-    // Reset zoom first so we get the true scrollWidth
-    wrap.style.zoom = 1;
+    // Zoomed out: scale to fit
+    wrap.style.zoom = '';
+    wrap.style.transform = '';
+    wrap.style.transformOrigin = '';
+    wrap.style.width = '';
+    wrap.style.marginBottom = '';
+
     const containerWidth = content.offsetWidth;
-    const tableWidth = wrap.scrollWidth;
-    const scale = Math.min(containerWidth / tableWidth, 0.99);
-    wrap.style.zoom = scale;
+    const naturalWidth = wrap.scrollWidth;
+    if (naturalWidth > containerWidth) {
+      const scale = containerWidth / naturalWidth;
+      wrap.style.transformOrigin = 'top left';
+      wrap.style.transform = `scale(${scale})`;
+      wrap.style.width = (naturalWidth) + 'px';
+      // Collapse the extra space the full-size element would take
+      const naturalHeight = wrap.offsetHeight;
+      wrap.style.marginBottom = `-${naturalHeight * (1 - scale)}px`;
+    }
     if (btn) { btn.textContent = '🔍 Zoom In'; btn.style.background = 'var(--green-pale)'; btn.style.color = 'var(--green-dark)'; btn.style.borderColor = 'var(--green-mid)'; }
   } else {
-    wrap.style.zoom = 1;
+    // Zoomed in: full size, scrollable
+    wrap.style.transform = '';
+    wrap.style.transformOrigin = '';
+    wrap.style.width = '';
+    wrap.style.marginBottom = '';
     if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
   }
 }
