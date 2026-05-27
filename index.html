@@ -634,16 +634,16 @@
         </select>
       </div>
       <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Matchup</label>
+        <select id="sc-matchup" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option value="0">Loading…</option>
+        </select>
+      </div>
+      <div>
         <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Nine Holes</label>
         <select id="sc-nine" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
           <option value="front">Front 9</option>
           <option value="back">Back 9</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Matchup</label>
-        <select id="sc-matchup" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
-          <option value="0">Loading…</option>
         </select>
       </div>
     </div>
@@ -1726,9 +1726,73 @@ async function loadScorecard(resetMatchup = false) {
   container.innerHTML = html;
 }
 
-document.getElementById('sc-week').addEventListener('change', () => { scCache = { key: null, scRows: null, rawRows: null }; loadScorecard(true); });
-document.getElementById('sc-nine').addEventListener('change', () => { scCache = { key: null, scRows: null, rawRows: null }; loadScorecard(true); });
-document.getElementById('sc-matchup').addEventListener('change', () => loadScorecard(false));
+document.getElementById('sc-week').addEventListener('change', () => {
+  scCache = { key: null, scRows: null, rawRows: null };
+  updateNineDropdown().then(() => loadScorecard(true));
+});
+document.getElementById('sc-matchup').addEventListener('change', () => {
+  scCache = { key: null, scRows: null, rawRows: null };
+  updateNineDropdown().then(() => loadScorecard(false));
+});
+document.getElementById('sc-nine').addEventListener('change', () => {
+  scCache = { key: null, scRows: null, rawRows: null };
+  loadScorecard(false);
+});
+
+// Check which nines have scores for the current week+matchup selection,
+// then update the Nine Holes dropdown accordingly
+async function updateNineDropdown() {
+  const week = document.getElementById('sc-week').value;
+  const frontRawSheet = SC_RAW_SHEETS[SC_SHEETS[week + '_front']];
+  const backRawSheet  = SC_RAW_SHEETS[SC_SHEETS[week + '_back']];
+  const sel = document.getElementById('sc-nine');
+
+  // Get the selected matchup's player names to check for scores
+  // We need the sc sheet to know who's in each matchup
+  const scSheetFront = SC_SHEETS[week + '_front'];
+  if (!scSheetFront || !frontRawSheet) return;
+
+  try {
+    // Fetch both raw sheets in parallel
+    const [frontRaw, backRaw] = await Promise.all([
+      frontRawSheet ? fetchSheet(frontRawSheet).then(t => tableRows(t)).catch(() => null) : Promise.resolve(null),
+      backRawSheet  ? fetchSheet(backRawSheet).then(t => tableRows(t)).catch(() => null)  : Promise.resolve(null)
+    ]);
+
+    // Check if a raw sheet has any actual scores (non-x, non-null gross values)
+    function hasScores(rawRows) {
+      if (!rawRows) return false;
+      for (const row of rawRows) {
+        if (row && row[0] === 'Gross') {
+          const scores = row.slice(5, 14);
+          if (scores.some(v => v !== null && v !== 'x' && v !== '' && !isNaN(parseFloat(v)))) return true;
+        }
+      }
+      return false;
+    }
+
+    const frontPlayed = hasScores(frontRaw);
+    const backPlayed  = hasScores(backRaw);
+    const currentVal  = sel.value;
+
+    if (frontPlayed && !backPlayed) {
+      // Only front played — lock to front
+      sel.innerHTML = '<option value="front">Front 9</option>';
+      sel.value = 'front';
+    } else if (backPlayed && !frontPlayed) {
+      // Only back played — lock to back
+      sel.innerHTML = '<option value="back">Back 9</option>';
+      sel.value = 'back';
+    } else {
+      // Both or neither — show both, preserve selection or default front
+      sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
+      sel.value = (currentVal === 'back') ? 'back' : 'front';
+    }
+  } catch(e) {
+    // On error just show both
+    sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
+  }
+}
 
 /* INIT */
 buildSchedule();
@@ -1738,7 +1802,7 @@ loadDirectory();
 loadSkins();
 loadTOTW();
 loadHdcpChart();
-loadScorecard(true);
+updateNineDropdown().then(() => loadScorecard(true));
 </script>
 </body>
 </html>
