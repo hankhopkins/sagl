@@ -1522,6 +1522,18 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
     { pr: p2row, name: p2name, gross: p2gross, net: p2net, match: p2match, results: p2results, courseHdcp: p2ch }
   ];
 
+  // Pre-compute both players' total points for name highlight
+  function calcTotalPts(results, oppResults) {
+    if (!results) return null;
+    const valid = results.filter(r => r !== null);
+    if (valid.length === 0) return null;
+    const holePts = valid.reduce((s,v) => s+v, 0);
+    const oppHolePts = oppResults ? oppResults.filter(r => r !== null).reduce((s,v) => s+v, 0) : 0;
+    return holePts + (holePts > oppHolePts ? 1 : holePts === oppHolePts ? 0.5 : 0);
+  }
+  const p1totalPts = calcTotalPts(p1results, p2results);
+  const p2totalPts = calcTotalPts(p2results, p1results);
+
   let html = `<tr><td colspan="16" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}`;
   if (roundDateStr) html += `<span style="font-weight:400;font-size:11px;opacity:0.8;margin-left:12px;">${roundDateStr}</span>`;
   html += `</td></tr>`;
@@ -1556,8 +1568,19 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
       ? `<span class="pts-badge${totalPts >= 5 ? ' gold-badge' : ''}">${totalPts % 1 === 0 ? totalPts : totalPts.toFixed(1)}</span>`
       : `<span style="color:var(--mid-gray);font-size:12px">—</span>`;
 
+    // Name highlight: green=win, red=loss, gray=tie
+    const myPts  = pd.name === p1name ? p1totalPts : p2totalPts;
+    const oppPts = pd.name === p1name ? p2totalPts : p1totalPts;
+    let nameBg = '', nameColor = '';
+    if (myPts !== null && oppPts !== null) {
+      if (myPts > oppPts)       { nameBg = 'rgba(45,90,61,0.85)';  nameColor = '#fff'; }
+      else if (myPts < oppPts)  { nameBg = 'rgba(160,40,40,0.8)';  nameColor = '#fff'; }
+      else                      { nameBg = 'rgba(120,120,120,0.5)'; nameColor = '#fff'; }
+    }
+    const nameStyle = nameBg ? `background:${nameBg};color:${nameColor};font-weight:600;padding:3px 8px;border-radius:4px;display:inline-block;` : '';
+
     html += `<tr class="sc-matchup${pd.name === p2name ? ' sc-matchup-divider' : ''}">
-      <td>${pd.name}</td>
+      <td><span style="${nameStyle}">${pd.name}</span></td>
       <td style="color:var(--mid-gray);font-size:11px">${roundDateStr}</td>
       <td style="text-align:center">${currentHdcp}</td>
       <td style="text-align:center">${pd.courseHdcp.toFixed(1)}</td>
