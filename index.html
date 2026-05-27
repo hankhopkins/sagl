@@ -1000,9 +1000,15 @@ async function loadStandings() {
       return;
     }
     tbody.innerHTML = rows.map((r, i) => {
-      return `<tr>
-        <td class="${rankClass(i)}">${i+1}</td>
-        <td class="team-name">${teamNameFromRow(r)}</td>
+      const isTop3 = i < 3;
+      const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const rankDisplay = isTop3
+        ? `<span style="font-size:1.4rem;">${rankEmoji}</span>`
+        : `<span>${i+1}</span>`;
+      const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
+      return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
+        <td class="${rankClass(i)}">${rankDisplay}</td>
+        <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
         <td>${fmtPts(r[3])}</td>
         <td>${fmtPts(r[4])}</td>
         <td>${fmtPts(r[5])}</td>
