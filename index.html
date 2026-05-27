@@ -1743,53 +1743,83 @@ document.getElementById('sc-nine').addEventListener('change', () => {
 // then update the Nine Holes dropdown accordingly
 async function updateNineDropdown() {
   const week = document.getElementById('sc-week').value;
-  const frontRawSheet = SC_RAW_SHEETS[SC_SHEETS[week + '_front']];
+  const scSheetFront = SC_SHEETS[week + '_front'];
+  const frontRawSheet = SC_RAW_SHEETS[scSheetFront];
   const backRawSheet  = SC_RAW_SHEETS[SC_SHEETS[week + '_back']];
   const sel = document.getElementById('sc-nine');
 
-  // Get the selected matchup's player names to check for scores
-  // We need the sc sheet to know who's in each matchup
-  const scSheetFront = SC_SHEETS[week + '_front'];
   if (!scSheetFront || !frontRawSheet) return;
 
   try {
+    // We need the sc sheet to know which players are in the selected matchup
+    // Use cached scRows if available, otherwise fetch front sc sheet
+    let scRows = scCache.scRows;
+    if (!scRows) {
+      const scTable = await fetchSheet(scSheetFront);
+      scRows = tableRows(scTable);
+    }
+
+    // Get the selected matchup's player names
+    const blocks = parseMatchupBlocks(scRows);
+    const teamMatchups = groupTeamMatchups(blocks);
+    const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
+    const tm = teamMatchups[selectedIdx];
+    if (!tm) return;
+
+    // Collect all 4 player names in this team matchup
+    const players = new Set();
+    [tm.blockA, tm.blockB].forEach(b => {
+      if (b) { if (b.p1name) players.add(b.p1name); if (b.p2name) players.add(b.p2name); }
+    });
+
     // Fetch both raw sheets in parallel
     const [frontRaw, backRaw] = await Promise.all([
       frontRawSheet ? fetchSheet(frontRawSheet).then(t => tableRows(t)).catch(() => null) : Promise.resolve(null),
       backRawSheet  ? fetchSheet(backRawSheet).then(t => tableRows(t)).catch(() => null)  : Promise.resolve(null)
     ]);
 
-    // Check if a raw sheet has any actual scores (non-x, non-null gross values)
-    function hasScores(rawRows) {
+    // Check if a raw sheet has scores for any of our matchup's players
+    function hasScoresForPlayers(rawRows, playerSet) {
       if (!rawRows) return false;
-      for (const row of rawRows) {
-        if (row && row[0] === 'Gross') {
-          const scores = row.slice(5, 14);
-          if (scores.some(v => v !== null && v !== 'x' && v !== '' && !isNaN(parseFloat(v)))) return true;
+      let i = 0;
+      while (i < rawRows.length) {
+        const r = rawRows[i];
+        if (r && r[0] === 'Name') {
+          const p1 = rawRows[i + 1] ? String(rawRows[i + 1][0] || '').trim() : '';
+          const p2 = rawRows[i + 2] ? String(rawRows[i + 2][0] || '').trim() : '';
+          if (playerSet.has(p1) || playerSet.has(p2)) {
+            // Find the gross row and check for actual scores
+            for (let j = i + 3; j < Math.min(i + 15, rawRows.length); j++) {
+              if (rawRows[j] && rawRows[j][0] === 'Gross') {
+                const scores = rawRows[j].slice(5, 14);
+                if (scores.some(v => v !== null && v !== 'x' && v !== '' && !isNaN(parseFloat(v)))) return true;
+                break;
+              }
+            }
+          }
+          i += 12;
+        } else {
+          i++;
         }
       }
       return false;
     }
 
-    const frontPlayed = hasScores(frontRaw);
-    const backPlayed  = hasScores(backRaw);
+    const frontPlayed = hasScoresForPlayers(frontRaw, players);
+    const backPlayed  = hasScoresForPlayers(backRaw,  players);
     const currentVal  = sel.value;
 
     if (frontPlayed && !backPlayed) {
-      // Only front played — lock to front
       sel.innerHTML = '<option value="front">Front 9</option>';
       sel.value = 'front';
     } else if (backPlayed && !frontPlayed) {
-      // Only back played — lock to back
       sel.innerHTML = '<option value="back">Back 9</option>';
       sel.value = 'back';
     } else {
-      // Both or neither — show both, preserve selection or default front
       sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
       sel.value = (currentVal === 'back') ? 'back' : 'front';
     }
   } catch(e) {
-    // On error just show both
     sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
   }
 }
