@@ -1342,6 +1342,7 @@ function parseRawScores(rawRows) {
       playerData[p1name] = {
         gross:   parseScores(rawRows[p1grossIdx]),
         net:     parseScores(rawRows[p1grossIdx + 1]),
+        match:   parseScores(rawRows[p1grossIdx + 2]),
         results: parseScores(rawRows[p1grossIdx + 3])
       };
     }
@@ -1349,6 +1350,7 @@ function parseRawScores(rawRows) {
       playerData[p2name] = {
         gross:   parseScores(rawRows[p2grossIdx]),
         net:     parseScores(rawRows[p2grossIdx + 1]),
+        match:   parseScores(rawRows[p2grossIdx + 2]),
         results: parseScores(rawRows[p2grossIdx + 3])
       };
     }
@@ -1440,7 +1442,7 @@ function populateMatchupDropdown(teamMatchups) {
   sel.value = (!isNaN(prevIdx) && prevIdx < teamMatchups.length) ? prevIdx : 0;
 }
 
-function renderHoleCell(holeNum, strokeVal, gross, net, result) {
+function renderHoleCell(holeNum, strokeVal, gross, net, match, result) {
   const played = gross !== null && !isNaN(gross);
   let cls = 'hole-cell unplayed';
   if (played && result !== null) {
@@ -1457,11 +1459,8 @@ function renderHoleCell(holeNum, strokeVal, gross, net, result) {
   let blStr = '';
   if (strokeVal === 1) blStr = '●';
   else if (strokeVal === 0.5) blStr = '½';
-  // BR: match result (1, 0.5, 0) — shown as bold+italic
-  let brStr = '';
-  if (played && result !== null) {
-    brStr = result % 1 === 0 ? result : result.toFixed(1);
-  }
+  // BR: match score
+  const brStr = (played && match !== null && !isNaN(match)) ? (match % 1 === 0 ? match : match.toFixed(1)) : '';
 
   return `<td class="${cls}">
     <div class="hole-cell-inner">
@@ -1500,9 +1499,9 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
   const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
   const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
 
-  // Get raw gross scores
   const p1pd_raw = rawData ? rawData[p1name] : null;
   const p2pd_raw = rawData ? rawData[p2name] : null;
+
   const p1gross = p1pd_raw ? p1pd_raw.gross : Array(9).fill(null);
   const p2gross = p2pd_raw ? p2pd_raw.gross : Array(9).fill(null);
 
@@ -1510,13 +1509,17 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
   const p1net = computeNetIfNeeded(p1gross, p1pd_raw ? p1pd_raw.net : null, p1ch, hdcpCells);
   const p2net = computeNetIfNeeded(p2gross, p2pd_raw ? p2pd_raw.net : null, p2ch, hdcpCells);
 
+  // Match scores (net after stroke allocation — same as net here since we compute strokes into net)
+  const p1match = p1pd_raw && p1pd_raw.match ? p1pd_raw.match : p1net;
+  const p2match = p2pd_raw && p2pd_raw.match ? p2pd_raw.match : p2net;
+
   // Compute results using fallback if needed
   const p1results = computeResultsIfNeeded(p1pd_raw ? p1pd_raw.results : null, p1net, p2net);
   const p2results = p1results ? p1results.map(r => r === null ? null : r === 1 ? 0 : r === 0 ? 1 : 0.5) : Array(9).fill(null);
 
   const players = [
-    { pr: p1row, name: p1name, gross: p1gross, net: p1net, results: p1results, courseHdcp: p1ch },
-    { pr: p2row, name: p2name, gross: p2gross, net: p2net, results: p2results, courseHdcp: p2ch }
+    { pr: p1row, name: p1name, gross: p1gross, net: p1net, match: p1match, results: p1results, courseHdcp: p1ch },
+    { pr: p2row, name: p2name, gross: p2gross, net: p2net, match: p2match, results: p2results, courseHdcp: p2ch }
   ];
 
   let html = `<tr><td colspan="16" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}`;
@@ -1567,9 +1570,10 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
         }
         const gross  = pd.gross[hIdx];
         const net    = pd.net[hIdx];
+        const match  = pd.match ? pd.match[hIdx] : null;
         const result = pd.results ? pd.results[hIdx] : null;
         const holeNum = hIdx + (Number(hdcpCells[0]) <= 9 ? 1 : 10);
-        return renderHoleCell(holeNum, strokeVal, gross, net, result);
+        return renderHoleCell(holeNum, strokeVal, gross, net, match, result);
       }).join('')}
       <td style="text-align:center;font-size:12px;white-space:nowrap;padding:6px 8px;color:var(--mid-gray)">${grossNetStr}</td>
       <td style="text-align:center">${ptsDisplay}</td>
@@ -1693,7 +1697,7 @@ async function loadScorecard(resetMatchup = false) {
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
-    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">top-right</em> net &nbsp;·&nbsp; <strong>bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>bottom-right</em></strong> match pts</span>
+    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">top-right</em> net &nbsp;·&nbsp; <strong>bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>bottom-right</em></strong> match score</span>
   </div>`;
 
   container.innerHTML = html;
