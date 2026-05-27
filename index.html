@@ -618,15 +618,6 @@
   .rc-loser   { background: rgba(180,40,40,0.07); }
   .rc-tied    { background: rgba(180,180,180,0.1); }
 
-  /* MOBILE ZOOM */
-  #sc-content.zoomed-out {
-    overflow-x: hidden;
-  }
-  #sc-content.zoomed-out .sc-wrap {
-    transform-origin: top left;
-    overflow: visible;
-  }
-
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -2009,17 +2000,17 @@ function toggleScZoom() {
   if (!wrap) return;
   scZoomed = !scZoomed;
   if (scZoomed) {
-    const scale = content.offsetWidth / wrap.scrollWidth;
-    wrap.style.transform = `scale(${Math.min(scale, 1)})`;
-    wrap.style.transformOrigin = 'top left';
-    wrap.style.marginBottom = `-${wrap.scrollHeight * (1 - Math.min(scale, 1))}px`;
+    // Calculate scale needed to fit table within viewport
+    const containerWidth = content.offsetWidth;
+    const tableWidth = wrap.scrollWidth;
+    const scale = Math.min(containerWidth / tableWidth, 1);
+    wrap.style.zoom = scale;
     btn.textContent = '🔍 Zoom In';
     btn.style.background = 'var(--green-pale)';
     btn.style.color = 'var(--green-dark)';
     btn.style.borderColor = 'var(--green-mid)';
   } else {
-    wrap.style.transform = '';
-    wrap.style.marginBottom = '';
+    wrap.style.zoom = 1;
     btn.textContent = '🔍 Zoom Out';
     btn.style.background = 'var(--white)';
     btn.style.color = 'var(--mid-gray)';
