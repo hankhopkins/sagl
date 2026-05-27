@@ -500,6 +500,34 @@
     padding: 7px 10px;
     letter-spacing: .04em;
   }
+
+  /* 4-CORNER HOLE CELL */
+  .hole-cell {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    padding: 0 !important;
+    vertical-align: middle;
+  }
+  .hole-cell-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .hole-cell.won { background: rgba(45,90,61,0.18) !important; }
+  .hole-cell.lost { background: rgba(180,40,40,0.13) !important; }
+  .hole-cell.tied { background: rgba(180,180,180,0.15) !important; }
+  .hole-cell.unplayed { background: transparent !important; }
+  .hc-tl { font-size: 9px; font-weight: 600; color: var(--mid-gray); padding: 3px 0 0 4px; line-height: 1; align-self: start; }
+  .hc-tr { font-size: 9px; font-weight: 700; color: var(--gold); padding: 3px 4px 0 0; line-height: 1; text-align: right; align-self: start; }
+  .hc-bl { font-size: 13px; font-weight: 600; color: var(--charcoal); padding: 0 0 3px 4px; line-height: 1; align-self: end; }
+  .hc-br { font-size: 10px; font-weight: 500; color: var(--green-mid); padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
+  .pts-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--green-dark); color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; min-width: 36px; }
+  .pts-badge.gold-badge { background: var(--gold); color: var(--green-dark); }
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -520,7 +548,7 @@
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
   <button class="nav-btn active" data-tab="standings">Standings</button>
-  <button class="nav-btn" data-tab="scorecards">Scorecards</button>
+  <button class="nav-btn" data-tab="scorecards">Matchups</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
   <button class="nav-btn" data-tab="players">Players</button>
   <button class="nav-btn" data-tab="sidegames">Side Games</button>
@@ -1198,48 +1226,74 @@ async function loadHdcpChart() {
 
 /* SCORECARDS */
 const SC_SHEETS = {
-  '1_front':  'edinburgh_sc',
-  '1_back':   'edinburgh_back_sc',
-  '2_front':  'keller_sc',
-  '2_back':   'keller_back_sc',
-  '3_front':  'chaska_town_sc',
-  '3_back':   'chaska_town_back_sc',
-  '5_front':  'baker_natl_sc',
-  '5_back':   'baker_natl_back_sc',
-  '6_front':  'braemar_sc',
-  '6_back':   'braemar_back_sc',
-  '7_front':  'pio_creek_sc',
-  '7_back':   'pio_creek_back_sc',
-  '8_front':  'keller_sc',
-  '8_back':   'keller_back_sc'
+  '1_front':  'edinburgh_sc',   '1_back':   'edinburgh_back_sc',
+  '2_front':  'keller_sc',      '2_back':   'keller_back_sc',
+  '3_front':  'chaska_town_sc', '3_back':   'chaska_town_back_sc',
+  '5_front':  'baker_natl_sc',  '5_back':   'baker_natl_back_sc',
+  '6_front':  'braemar_sc',     '6_back':   'braemar_back_sc',
+  '7_front':  'pio_creek_sc',   '7_back':   'pio_creek_back_sc',
+  '8_front':  'keller_sc',      '8_back':   'keller_back_sc'
 };
 
-function fmtStroke(v) {
-  if (v === null || v === undefined || v === '') return '';
-  const n = parseFloat(v);
-  if (isNaN(n) || n === 0) return '';
-  if (n === 0.5) return '<span class="sc-stroke-half">½</span>';
-  if (Number.isInteger(n)) return '<span class="sc-stroke">' + n + '</span>';
-  const whole = Math.floor(n);
-  return '<span class="sc-stroke">' + whole + '½</span>';
-}
+// Map scorecard sheet → raw score sheet
+const SC_RAW_SHEETS = {
+  'edinburgh_sc':       'edinburgh',
+  'edinburgh_back_sc':  'edinburgh_back',
+  'keller_sc':          'keller',
+  'keller_back_sc':     'keller_back',
+  'chaska_town_sc':     'chaska_town',
+  'chaska_town_back_sc':'chaska_town_back',
+  'baker_natl_sc':      'baker_natl',
+  'baker_natl_back_sc': 'baker_natl_back',
+  'braemar_sc':         'braemar',
+  'braemar_back_sc':    'braemar_back',
+  'pio_creek_sc':       'pioneer_creek',
+  'pio_creek_back_sc':  'pio_creek_back_sc'
+};
 
-// Cache fetched sheet data so matchup dropdown changes don't re-fetch
-let scCache = { key: null, rows: null };
+let scCache = { key: null, scRows: null, rawRows: null };
 
 function trunc4(name) {
   if (!name) return '';
-  // Split on space, take last word (last name), truncate to 4 chars, capitalize first
   const parts = name.trim().split(' ');
   const last = parts[parts.length - 1];
   return last.charAt(0).toUpperCase() + last.slice(1, 4);
 }
 
-function matchupLabel4(p1name, p2name) {
-  return trunc4(p1name) + ' vs ' + trunc4(p2name);
+// Parse raw score sheet into a map: playerName → { gross[9], net[9], results[9] }
+// Raw sheet structure per matchup (rows repeat per pair):
+//   Row type "Name":    col[0]=playerName, col[1]=date
+//   Row type "Gross":   col[0]="Gross", cols[5-13]=gross scores
+//   Row type "Net":     col[0]="Net",   cols[5-13]=net scores
+//   Row type "Match":   col[0]="Match" or "Results", cols[5-13]=results (1=win,0.5=tie,0=loss)
+function parseRawScores(rawRows) {
+  const playerData = {};
+  if (!rawRows) return playerData;
+  let i = 6; // skip header rows
+  while (i < rawRows.length) {
+    const r = rawRows[i];
+    if (!r || !r[0]) { i++; continue; }
+    const label = String(r[0]).trim();
+    // Name row: col[0] is a player name (not a keyword)
+    if (label && !['Gross','Net','Match','Results','Name'].includes(label)) {
+      const playerName = label;
+      // Next rows: Gross, Net, Match/Results
+      const grossRow = i + 1 < rawRows.length ? rawRows[i + 1] : null;
+      const netRow   = i + 2 < rawRows.length ? rawRows[i + 2] : null;
+      const resRow   = i + 3 < rawRows.length ? rawRows[i + 3] : null;
+      const gross = grossRow ? grossRow.slice(5, 14).map(v => (v !== null && v !== undefined && v !== 'x' && v !== '') ? parseFloat(v) : null) : Array(9).fill(null);
+      const net   = netRow   ? netRow.slice(5, 14).map(v => (v !== null && v !== undefined && v !== 'x' && v !== '') ? parseFloat(v) : null) : Array(9).fill(null);
+      const results = resRow ? resRow.slice(5, 14).map(v => (v !== null && v !== undefined && v !== '') ? parseFloat(v) : null) : Array(9).fill(null);
+      playerData[playerName] = { gross, net, results };
+      i += 4;
+    } else {
+      i++;
+    }
+  }
+  return playerData;
 }
 
-// Parse all individual matchup blocks from rows
+// Parse sc sheet matchup blocks (from gviz/tq)
 function parseMatchupBlocks(rows) {
   const blocks = [];
   let i = 4;
@@ -1260,51 +1314,60 @@ function parseMatchupBlocks(rows) {
   return blocks;
 }
 
-// Group individual blocks into team matchups (pairs: block 0+1, block 2+3, etc.)
 function groupTeamMatchups(blocks) {
   const teams = [];
   for (let i = 0; i < blocks.length; i += 2) {
-    const a = blocks[i];
-    const b = blocks[i + 1];
-    if (!b) {
-      // Odd block out — treat as solo
-      teams.push({ blockA: a, blockB: null });
-    } else {
-      teams.push({ blockA: a, blockB: b });
-    }
+    teams.push({ blockA: blocks[i], blockB: blocks[i + 1] || null });
   }
   return teams;
 }
 
 function teamMatchupLabel(tm) {
   const { blockA, blockB } = tm;
-  // blockA: p1name vs p2name (individual match 1)
-  // blockB: p1name vs p2name (individual match 2)
-  // Team label: "A1 & B1 vs A2 & B2"
-  const a1 = trunc4(blockA.p1name);
+  const a1 = trunc4(blockA.p1name), a2 = trunc4(blockA.p2name);
   const b1 = blockB ? trunc4(blockB.p1name) : '';
-  const a2 = trunc4(blockA.p2name);
   const b2 = blockB ? trunc4(blockB.p2name) : '';
-  if (b1 && b2) return `${a1} & ${b1} vs ${a2} & ${b2}`;
-  return `${a1} vs ${a2}`;
+  return (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
 }
 
 function populateMatchupDropdown(teamMatchups) {
   const sel = document.getElementById('sc-matchup');
   const prev = sel.value;
-  sel.innerHTML = teamMatchups.map((tm, idx) => {
-    const label = teamMatchupLabel(tm) || ('Matchup ' + (idx + 1));
-    return `<option value="${idx}">${label}</option>`;
-  }).join('');
+  sel.innerHTML = teamMatchups.map((tm, idx) =>
+    `<option value="${idx}">${teamMatchupLabel(tm) || 'Matchup ' + (idx + 1)}</option>`
+  ).join('');
   const prevIdx = parseInt(prev);
-  if (!isNaN(prevIdx) && prevIdx < teamMatchups.length) {
-    sel.value = prevIdx;
-  } else {
-    sel.value = 0;
-  }
+  sel.value = (!isNaN(prevIdx) && prevIdx < teamMatchups.length) ? prevIdx : 0;
 }
 
-function renderMatchupBlock(block, matchupNum, hdcpCells, nine) {
+function renderHoleCell(holeNum, strokeVal, gross, net, result) {
+  // strokeVal: 0, 0.5, or 1
+  // result: 1=win(green), 0.5=tie(gray), 0=loss(red), null=unplayed
+  const played = gross !== null && !isNaN(gross);
+  let cls = 'hole-cell unplayed';
+  if (played && result !== null) {
+    if (result === 1) cls = 'hole-cell won';
+    else if (result === 0.5) cls = 'hole-cell tied';
+    else cls = 'hole-cell lost';
+  }
+  let strokeStr = '';
+  if (strokeVal === 1) strokeStr = '●';
+  else if (strokeVal === 0.5) strokeStr = '½';
+
+  const grossStr = played ? gross : '';
+  const netStr   = (played && net !== null && !isNaN(net)) ? (net % 1 === 0 ? net : net.toFixed(1)) : '';
+
+  return `<td class="${cls}">
+    <div class="hole-cell-inner">
+      <div class="hc-tl">${holeNum}</div>
+      <div class="hc-tr">${strokeStr}</div>
+      <div class="hc-bl">${grossStr}</div>
+      <div class="hc-br">${netStr}</div>
+    </div>
+  </td>`;
+}
+
+function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
   const { dateRow, p1name, p2name, p1row, p2row } = block;
   const roundDateRaw = dateRow[1] || '';
   let roundDateStr = '';
@@ -1314,7 +1377,7 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, nine) {
     const d = new Date((roundDateRaw - 25569) * 86400 * 1000);
     roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
   }
-  const isPlayed = roundDateStr !== '';
+
   const isGold = matchupNum % 2 === 0;
   const hdrBg = isGold ? '#d4a843' : '#1a3a2a';
   const hdrColor = isGold ? '#1a3a2a' : '#d4a843';
@@ -1323,42 +1386,70 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, nine) {
   const p1ch = p1row ? parseFloat(p1row[2] || 0) : 0;
   const p2ch = p2row ? parseFloat(p2row[2] || 0) : 0;
   const higherCH = Math.max(p1ch, p2ch);
-  const diff = Math.round((Math.max(p1ch, p2ch) - Math.min(p1ch, p2ch)) * 2) / 2;
+  const diff = Math.round((higherCH - Math.min(p1ch, p2ch)) * 2) / 2;
 
-  let html = `<tr><td colspan="14" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}</td></tr>`;
+  // Compute stroke holes
+  const sortedHdcps = [...hdcpCells].filter(h => h !== null && h !== '').map(Number).sort((a,b) => a-b);
+  const fullStrokes = Math.floor(diff);
+  const hasHalf = (diff % 1) === 0.5;
+  const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
+  const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
+
+  let html = `<tr><td colspan="14" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}`;
+  if (roundDateStr) html += `<span style="font-weight:400;font-size:11px;opacity:0.8;margin-left:12px;">${roundDateStr}</span>`;
+  html += `</td></tr>`;
 
   for (const pr of [p1row, p2row]) {
     if (!pr) continue;
     const playerName = pr[4] || '';
     if (!playerName) continue;
-    const currentHdcp = pr[1] !== null && pr[1] !== '' ? parseFloat(pr[1]).toFixed(1) : '';
-    const courseHdcp = pr[2] !== null && pr[2] !== '' ? parseFloat(pr[2]) : 0;
-    const dateStr = isPlayed ? roundDateStr : '';
-    const totalStrokes = pr[14] !== null && pr[14] !== '' ? pr[14] : '';
-    const rowPlayed = dateStr !== '';
-    const strokesGiven = courseHdcp === higherCH ? diff : 0;
-    const fullStrokes = Math.floor(strokesGiven);
-    const hasHalf = (strokesGiven % 1) === 0.5;
+    const currentHdcp = (pr[1] !== null && pr[1] !== '') ? parseFloat(pr[1]).toFixed(1) : '';
+    const courseHdcp  = (pr[2] !== null && pr[2] !== '') ? parseFloat(pr[2]) : 0;
+    const strokesGiven = (courseHdcp === higherCH) ? diff : 0;
 
-    html += `<tr class="sc-matchup" style="${rowPlayed ? 'background:rgba(232,243,236,0.4)' : ''}">
-      <td>${playerName} ${rowPlayed ? '<span style="font-size:10px;color:var(--green-mid);font-weight:500">✓</span>' : ''}</td>
-      <td style="color:var(--mid-gray);font-size:11px">${dateStr}</td>
+    // Get raw score data for this player
+    const pd = rawData ? rawData[playerName] : null;
+
+    // Compute points total from results
+    let totalPts = null;
+    if (pd && pd.results) {
+      const validResults = pd.results.filter(r => r !== null);
+      if (validResults.length > 0) {
+        totalPts = validResults.reduce((s, v) => s + v, 0);
+        // Add bonus point for match win
+        const oppName = (playerName === p1name) ? p2name : p1name;
+        const oppPd = rawData ? rawData[oppName] : null;
+        if (oppPd && oppPd.results) {
+          const oppTotal = oppPd.results.filter(r => r !== null).reduce((s,v) => s+v, 0);
+          if (totalPts > oppTotal) totalPts += 1;
+          else if (totalPts === oppTotal) totalPts += 0.5;
+        }
+      }
+    }
+
+    const ptsDisplay = totalPts !== null
+      ? `<span class="pts-badge${totalPts >= 5 ? ' gold-badge' : ''}">${totalPts % 1 === 0 ? totalPts : totalPts.toFixed(1)}</span>`
+      : `<span style="color:var(--mid-gray);font-size:12px">—</span>`;
+
+    html += `<tr class="sc-matchup">
+      <td>${playerName}</td>
+      <td style="color:var(--mid-gray);font-size:11px">${roundDateStr}</td>
       <td style="text-align:center">${currentHdcp}</td>
       <td style="text-align:center">${courseHdcp.toFixed(1)}</td>
-      ${(() => {
-        if (strokesGiven === 0) return hdcpCells.map(() => '<td></td>').join('');
-        const sortedHdcps = [...hdcpCells].filter(h => h).map(Number).sort((a,b) => a-b);
-        const strokeHoles = new Set(sortedHdcps.slice(0, fullStrokes));
-        const halfHole = hasHalf ? sortedHdcps[fullStrokes] : null;
-        return hdcpCells.map((holeHdcp) => {
-          if (!holeHdcp) return '<td></td>';
-          const h = Number(holeHdcp);
-          if (strokeHoles.has(h)) return '<td>' + fmtStroke(1) + '</td>';
-          if (halfHole && h === halfHole) return '<td>' + fmtStroke(0.5) + '</td>';
-          return '<td></td>';
-        }).join('');
-      })()}
-      <td><strong>${totalStrokes !== '' ? totalStrokes : '0'}</strong></td>
+      ${hdcpCells.map((holeHdcp, hIdx) => {
+        const h = holeHdcp ? Number(holeHdcp) : null;
+        let strokeVal = 0;
+        if (h !== null) {
+          if (strokeHoles.has(h) && strokesGiven > 0) strokeVal = 1;
+          else if (halfHole && h === halfHole && strokesGiven > 0) strokeVal = 0.5;
+        }
+        const gross   = pd ? pd.gross[hIdx]   : null;
+        const net     = pd ? pd.net[hIdx]     : null;
+        const result  = pd ? pd.results[hIdx] : null;
+        const holeNum = hdcpCells.indexOf(holeHdcp) >= 0 ? hIdx + (hdcpCells[0] <= 9 ? 1 : 10) : hIdx + 1;
+        return renderHoleCell(hIdx + (hdcpCells[0] !== null && Number(hdcpCells[0]) <= 9 ? 1 : 10), strokeVal, gross, net, result);
+      }).join('')}
+      <td style="text-align:center">${ptsDisplay}</td>
     </tr>`;
   }
   return html;
@@ -1369,6 +1460,7 @@ async function loadScorecard(resetMatchup = false) {
   const nine = document.getElementById('sc-nine').value;
   const sheetKey = week + '_' + nine;
   const sheetName = SC_SHEETS[sheetKey];
+  const rawSheetName = SC_RAW_SHEETS[sheetName];
   const container = document.getElementById('sc-content');
 
   if (!sheetName) {
@@ -1376,16 +1468,20 @@ async function loadScorecard(resetMatchup = false) {
     return;
   }
 
-  // Fetch sheet data (use cache if same sheet)
-  let rows;
-  if (scCache.key === sheetKey && scCache.rows) {
-    rows = scCache.rows;
+  let scRows, rawRows;
+  if (scCache.key === sheetKey && scCache.scRows) {
+    scRows  = scCache.scRows;
+    rawRows = scCache.rawRows;
   } else {
     container.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>';
     try {
-      const table = await fetchSheet(sheetName);
-      rows = tableRows(table);
-      scCache = { key: sheetKey, rows };
+      const [scTable, rawTable] = await Promise.all([
+        fetchSheet(sheetName),
+        rawSheetName ? fetchSheet(rawSheetName) : Promise.resolve(null)
+      ]);
+      scRows  = tableRows(scTable);
+      rawRows = rawTable ? tableRows(rawTable) : null;
+      scCache = { key: sheetKey, scRows, rawRows };
     } catch(e) {
       container.innerHTML = '<div class="loading-msg">Could not load scorecard — sheet may be updating.</div>';
       console.error(e);
@@ -1393,39 +1489,43 @@ async function loadScorecard(resetMatchup = false) {
     }
   }
 
-  if (!rows || rows.length < 4) {
+  if (!scRows || scRows.length < 4) {
     container.innerHTML = '<div class="loading-msg">No data yet for this scorecard.</div>';
     return;
   }
 
-  const parRow = rows[2];
-  const hdcpRow = rows[3];
+  const parRow  = scRows[2];
+  const hdcpRow = scRows[3];
+
   const courseNameMap = {
-    'edinburgh_sc': 'Edinburgh', 'edinburgh_back_sc': 'Edinburgh',
-    'keller_sc': 'Keller', 'keller_back_sc': 'Keller',
-    'chaska_town_sc': 'Chaska Town', 'chaska_town_back_sc': 'Chaska Town',
+    'edinburgh_sc': 'Edinburgh',       'edinburgh_back_sc': 'Edinburgh',
+    'keller_sc': 'Keller',             'keller_back_sc': 'Keller',
+    'chaska_town_sc': 'Chaska Town',   'chaska_town_back_sc': 'Chaska Town',
     'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
-    'braemar_sc': 'Braemar', 'braemar_back_sc': 'Braemar',
-    'pio_creek_sc': 'Pioneer Creek', 'pio_creek_back_sc': 'Pioneer Creek'
+    'braemar_sc': 'Braemar',           'braemar_back_sc': 'Braemar',
+    'pio_creek_sc': 'Pioneer Creek',   'pio_creek_back_sc': 'Pioneer Creek'
   };
   const actualCourseName = courseNameMap[sheetName] || sheetName;
-  const actualRating = rows[1] ? (rows[1][2] || '') : '';
-  const actualSlope = rows[1] ? (rows[1][3] || '') : '';
-  const teeColor = rows[5] ? (rows[5][3] || '') : '';
+  const actualRating = scRows[1] ? (scRows[1][2] || '') : '';
+  const actualSlope  = scRows[1] ? (scRows[1][3] || '') : '';
+  const teeColor     = scRows[5] ? (scRows[5][3] || '') : '';
 
   const side = nine === 'back' ? 'Back' : 'Front';
   const holeStart = nine === 'back' ? 10 : 1;
   const holes = Array.from({length: 9}, (_, i) => holeStart + i);
 
-  const yardRow = rows[1];
+  const yardRow   = scRows[1];
   const yardCells = yardRow ? yardRow.slice(5, 14) : [];
   const yardTotal = yardRow ? (yardRow[14] || '') : '';
-  const parCells = parRow.slice(5, 14);
-  const parTotal = parRow[14] || '';
+  const parCells  = parRow.slice(5, 14);
+  const parTotal  = parRow[14] || '';
   const hdcpCells = hdcpRow.slice(5, 14);
 
-  // Parse all matchup blocks, group into team matchups, populate dropdown
-  const blocks = parseMatchupBlocks(rows);
+  // Parse raw scores
+  const rawData = parseRawScores(rawRows);
+
+  // Parse matchup blocks & populate dropdown
+  const blocks      = parseMatchupBlocks(scRows);
   const teamMatchups = groupTeamMatchups(blocks);
   if (resetMatchup) document.getElementById('sc-matchup').value = 0;
   populateMatchupDropdown(teamMatchups);
@@ -1444,15 +1544,14 @@ async function loadScorecard(resetMatchup = false) {
   </div>
   <div class="sc-wrap"><table class="sc-table">
     <thead><tr>
-      <th>Hole</th>
-      <th></th><th></th><th></th>
+      <th>Hole</th><th></th><th></th><th></th>
       ${holes.map(h => '<th>' + h + '</th>').join('')}
-      <th>Total</th>
+      <th>Pts</th>
     </tr></thead>
     <tbody>`;
 
   html += `<tr class="sc-hdcp"><td>Yards</td><td></td><td></td><td></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td></tr>`;
-  html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${parTotal}</td></tr>`;
+  html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td style="font-weight:600">' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td style="font-weight:600">${parTotal}</td></tr>`;
   html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td></td><td></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td></tr>`;
 
   html += `<tr style="background:var(--green-dark)">
@@ -1461,20 +1560,25 @@ async function loadScorecard(resetMatchup = false) {
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Hdcp</th>
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
     ${holes.map(() => '<th style="color:#fff;padding:7px 10px;font-size:10px"></th>').join('')}
-    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Strokes</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Pts</th>
   </tr>`;
 
-  // Render both individual matchup blocks for this team matchup
-  html += renderMatchupBlock(teamMatchup.blockA, 0, hdcpCells, nine);
-  if (teamMatchup.blockB) {
-    html += renderMatchupBlock(teamMatchup.blockB, 1, hdcpCells, nine);
-  }
-  html += '</tbody></table></div>';
+  html += renderMatchupBlock(teamMatchup.blockA, 0, hdcpCells, rawData);
+  if (teamMatchup.blockB) html += renderMatchupBlock(teamMatchup.blockB, 1, hdcpCells, rawData);
+
+  html += `</tbody></table></div>
+  <div style="margin-top:10px;font-size:11px;color:var(--mid-gray);display:flex;gap:16px;flex-wrap:wrap;padding:0 2px;">
+    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
+    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
+    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
+    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> hole# &nbsp;·&nbsp; <strong>bottom-left</strong> gross &nbsp;·&nbsp; <strong style="color:var(--green-mid)">bottom-right</strong> net</span>
+  </div>`;
+
   container.innerHTML = html;
 }
 
-document.getElementById('sc-week').addEventListener('change', () => { scCache = { key: null, rows: null }; loadScorecard(true); });
-document.getElementById('sc-nine').addEventListener('change', () => { scCache = { key: null, rows: null }; loadScorecard(true); });
+document.getElementById('sc-week').addEventListener('change', () => { scCache = { key: null, scRows: null, rawRows: null }; loadScorecard(true); });
+document.getElementById('sc-nine').addEventListener('change', () => { scCache = { key: null, scRows: null, rawRows: null }; loadScorecard(true); });
 document.getElementById('sc-matchup').addEventListener('change', () => loadScorecard(false));
 
 /* INIT */
