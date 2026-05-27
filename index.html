@@ -1979,9 +1979,13 @@ async function loadScorecard(resetMatchup = false) {
 
   container.innerHTML = html;
 
-  // Default to zoomed out; apply after a brief paint delay so scrollWidth is accurate
+  // Default to zoomed out — wait for full paint before measuring
   scZoomed = false;
-  setTimeout(applyScZoom, 50);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setTimeout(applyScZoom, 100);
+    });
+  });
 }
 
 document.getElementById('sc-week').addEventListener('change', () => {
@@ -1997,14 +2001,14 @@ function applyScZoom() {
   const btn = document.getElementById('sc-zoom-btn');
   if (!wrap) return;
   if (!scZoomed) {
-    // Zoomed out (default) — fit to screen
+    // Reset zoom first so we get the true scrollWidth
+    wrap.style.zoom = 1;
     const containerWidth = content.offsetWidth;
     const tableWidth = wrap.scrollWidth;
-    const scale = Math.min(containerWidth / tableWidth, 1);
+    const scale = Math.min(containerWidth / tableWidth, 0.99);
     wrap.style.zoom = scale;
     if (btn) { btn.textContent = '🔍 Zoom In'; btn.style.background = 'var(--green-pale)'; btn.style.color = 'var(--green-dark)'; btn.style.borderColor = 'var(--green-mid)'; }
   } else {
-    // Zoomed in — full size
     wrap.style.zoom = 1;
     if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
   }
