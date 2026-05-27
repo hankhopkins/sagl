@@ -555,6 +555,74 @@
   .sc-table tr.sc-matchup-divider td { border-top: 2px solid #aaa !important; }
   .pts-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--green-dark); color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; min-width: 36px; }
   .pts-badge.gold-badge { background: var(--gold); color: var(--green-dark); }
+  /* RESULTS PAGE */
+  .results-week-section { margin-bottom: 2.5rem; }
+  .results-week-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 1rem;
+  }
+  .results-week-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem; font-weight: 700;
+    color: var(--green-dark);
+  }
+  .results-week-course {
+    font-size: 13px; color: var(--mid-gray); font-weight: 400;
+  }
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+  }
+  .results-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .results-card-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    padding: 9px 14px;
+    gap: 10px;
+    border-bottom: 1px solid var(--light-gray);
+    font-size: 13px;
+  }
+  .results-card-row:last-child { border-bottom: none; }
+  .results-card-row.winner { background: rgba(45,90,61,0.1); }
+  .results-card-row.loser  { background: rgba(180,40,40,0.07); }
+  .results-card-row.tied   { background: rgba(180,180,180,0.1); }
+  .results-card-row.pending { opacity: 0.5; }
+  .results-player { font-weight: 500; color: var(--charcoal); }
+  .results-pts {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem; font-weight: 700;
+    color: var(--green-dark); min-width: 24px; text-align: right;
+  }
+  .results-pts.winner-pts { color: var(--gold); }
+  .results-gross { font-size: 11px; color: var(--mid-gray); min-width: 28px; text-align: right; }
+  .results-net   { font-size: 11px; color: var(--mid-gray); min-width: 32px; text-align: right; }
+  .results-vs-divider {
+    text-align: center; padding: 4px 14px;
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--mid-gray);
+    background: var(--green-pale);
+    border-bottom: 1px solid var(--border);
+  }
+  .results-col-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    padding: 5px 14px;
+    gap: 10px;
+    background: var(--green-dark);
+  }
+  .results-col-header span {
+    font-size: 9px; font-weight: 500; letter-spacing: .1em;
+    text-transform: uppercase; color: rgba(255,255,255,0.6);
+  }
+  .results-col-header span:not(:first-child) { text-align: right; }
+
   /* RESPONSIVE */
   @media (max-width: 600px) {
     .stat-value { font-size: 1.8rem; }
@@ -575,6 +643,7 @@
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
   <button class="nav-btn active" data-tab="standings">Standings</button>
+  <button class="nav-btn" data-tab="results">Results</button>
   <button class="nav-btn" data-tab="scorecards">Matchups</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
   <button class="nav-btn" data-tab="players">Players</button>
@@ -615,6 +684,13 @@
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div class="tab-content" id="tab-results">
+    <div id="results-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading results…</div>
     </div>
   </div>
 
@@ -1251,6 +1327,108 @@ async function loadHdcpChart() {
 }
 
 
+/* RESULTS */
+async function loadResults() {
+  const container = document.getElementById('results-content');
+  try {
+    const table = await fetchSheet('weekly_results');
+    const rows = tableRows(table);
+
+    const weeks = [];
+    let i = 0;
+
+    while (i < rows.length) {
+      const r = rows[i];
+      if (r && (r[0] === 'Week' || r[0] === 'Team') && rows[i+1] && !isNaN(parseFloat(rows[i+1][0]))) {
+        const weekNum = parseFloat(rows[i+1][0]);
+        const course  = rows[i+1][1] || '';
+        const isScramble = course === 'Meadowbrook';
+        const matchups = [];
+        let j = i + 3;
+        while (j < rows.length) {
+          const mr = rows[j];
+          if (!mr || mr[0] === null || mr[0] === 'Week' || mr[0] === 'Team') break;
+          const p1name  = mr[0] || '';
+          const p2name  = mr[1] || '';
+          const p1pts   = (mr[3] !== null && mr[3] !== '#N/A' && !isNaN(parseFloat(mr[3]))) ? parseFloat(mr[3]) : null;
+          const p1gross = (mr[4] !== null && mr[4] !== '#N/A' && !isNaN(parseFloat(mr[4])) && parseFloat(mr[4]) > 0) ? parseFloat(mr[4]) : null;
+          const p1net   = (mr[5] !== null && mr[5] !== '#N/A' && !isNaN(parseFloat(mr[5]))) ? parseFloat(mr[5]) : null;
+          const p2pts   = (mr[9] !== null && mr[9] !== '#N/A' && !isNaN(parseFloat(mr[9]))) ? parseFloat(mr[9]) : null;
+          const p2gross = (mr[10] !== null && mr[10] !== '#N/A' && !isNaN(parseFloat(mr[10])) && parseFloat(mr[10]) > 0) ? parseFloat(mr[10]) : null;
+          const p2net   = (mr[11] !== null && mr[11] !== '#N/A' && !isNaN(parseFloat(mr[11]))) ? parseFloat(mr[11]) : null;
+          if (p1name) matchups.push({ p1name, p2name, p1pts, p1gross, p1net, p2pts, p2gross, p2net });
+          j++;
+        }
+        weeks.push({ weekNum, course, isScramble, matchups });
+        i = j;
+      } else {
+        i++;
+      }
+    }
+
+    if (weeks.length === 0) {
+      container.innerHTML = '<div class="loading-msg" style="padding:3rem">No results yet — check back after Week 1!</div>';
+      return;
+    }
+
+    function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
+
+    let html = '';
+    for (const w of weeks) {
+      const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
+
+      html += `<div class="results-week-section">
+        <div class="section-title"><span class="dot"></span>Week ${w.weekNum} — ${w.course}${w.isScramble ? ' <span style="font-size:11px;font-weight:400;color:var(--gold);font-family:\'DM Sans\',sans-serif">Scramble</span>' : ''}${!anyPlayed ? ' <span style="font-size:11px;font-weight:400;color:var(--mid-gray);font-style:italic;font-family:\'DM Sans\',sans-serif">Not yet played</span>' : ''}</span></div>`;
+
+      if (!anyPlayed) { html += `</div>`; continue; }
+
+      const renderRow = (name, pts, gross, net, oppPts) => {
+        const played = pts !== null;
+        let rowCls = played ? (pts > oppPts ? 'winner' : pts < oppPts ? 'loser' : 'tied') : 'pending';
+        return `<div class="results-card-row ${rowCls}">
+          <span class="results-player">${name}</span>
+          <span class="results-gross">${fmtNum(gross)}</span>
+          <span class="results-net">${fmtNum(net)}</span>
+          <span class="results-pts ${played && pts > oppPts ? 'winner-pts' : ''}">${fmtNum(pts)}</span>
+        </div>`;
+      };
+
+      html += `<div class="results-grid">`;
+
+      if (w.isScramble) {
+        for (const m of w.matchups) {
+          html += `<div class="results-card">
+            <div class="results-col-header"><span>Team</span><span>Gross</span><span>Net</span><span>Pts</span></div>
+            ${renderRow(m.p1name, m.p1pts, m.p1gross, m.p1net, m.p2pts)}
+          </div>`;
+        }
+      } else {
+        for (let k = 0; k < w.matchups.length; k += 2) {
+          const ma = w.matchups[k];
+          const mb = w.matchups[k + 1];
+          if (!ma) continue;
+          html += `<div class="results-card">
+            <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
+            ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
+            ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
+            <div class="results-vs-divider">vs</div>
+            ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
+            ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
+          </div>`;
+        }
+      }
+
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="loading-msg">Could not load results.</div>';
+    console.error(e);
+  }
+}
+
+
 /* SCORECARDS */
 const SC_SHEETS = {
   '1_front':  'edinburgh_sc',   '1_back':   'edinburgh_back_sc',
@@ -1828,6 +2006,7 @@ async function updateNineDropdown() {
 buildSchedule();
 loadStandings();
 loadIndividual();
+loadResults();
 loadDirectory();
 loadSkins();
 loadTOTW();
