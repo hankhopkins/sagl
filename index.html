@@ -1680,9 +1680,9 @@ function groupTeamMatchups(blocks) {
 
 function teamMatchupLabel(tm) {
   const { blockA, blockB } = tm;
-  const a1 = trunc4(blockA.p1name), a2 = trunc4(blockA.p2name);
-  const b1 = blockB ? trunc4(blockB.p1name) : '';
-  const b2 = blockB ? trunc4(blockB.p2name) : '';
+  const a1 = lastName(blockA.p1name), a2 = lastName(blockA.p2name);
+  const b1 = blockB ? lastName(blockB.p1name) : '';
+  const b2 = blockB ? lastName(blockB.p2name) : '';
   return (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
 }
 
