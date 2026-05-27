@@ -717,15 +717,15 @@
         </select>
       </div>
     </div>
-    <div id="sc-content">
-      <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
-    </div>
-    <div id="sc-zoom-bar" style="margin-top:10px; display:none;">
+    <div id="sc-zoom-bar" style="margin-bottom:10px;">
       <button id="sc-zoom-btn" onclick="toggleScZoom()" style="
         padding:6px 14px; font-size:12px; font-family:inherit; cursor:pointer;
-        border:1px solid var(--border); border-radius:8px;
-        background:var(--white); color:var(--mid-gray); font-weight:500;
-      ">🔍 Zoom Out</button>
+        border:1px solid var(--green-mid); border-radius:8px;
+        background:var(--green-pale); color:var(--green-dark); font-weight:500;
+      ">🔍 Zoom In</button>
+    </div>
+    <div id="sc-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
     </div>
   </div>
 
@@ -1979,12 +1979,9 @@ async function loadScorecard(resetMatchup = false) {
 
   container.innerHTML = html;
 
-  // Show zoom button and reset zoom state
+  // Default to zoomed out; apply after a brief paint delay so scrollWidth is accurate
   scZoomed = false;
-  const zoomBar = document.getElementById('sc-zoom-bar');
-  if (zoomBar) zoomBar.style.display = 'block';
-  const btn = document.getElementById('sc-zoom-btn');
-  if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
+  setTimeout(applyScZoom, 50);
 }
 
 document.getElementById('sc-week').addEventListener('change', () => {
@@ -1993,29 +1990,29 @@ document.getElementById('sc-week').addEventListener('change', () => {
 });
 
 let scZoomed = false;
-function toggleScZoom() {
+
+function applyScZoom() {
   const content = document.getElementById('sc-content');
+  const wrap = content ? content.querySelector('.sc-wrap') : null;
   const btn = document.getElementById('sc-zoom-btn');
-  const wrap = content.querySelector('.sc-wrap');
   if (!wrap) return;
-  scZoomed = !scZoomed;
-  if (scZoomed) {
-    // Calculate scale needed to fit table within viewport
+  if (!scZoomed) {
+    // Zoomed out (default) — fit to screen
     const containerWidth = content.offsetWidth;
     const tableWidth = wrap.scrollWidth;
     const scale = Math.min(containerWidth / tableWidth, 1);
     wrap.style.zoom = scale;
-    btn.textContent = '🔍 Zoom In';
-    btn.style.background = 'var(--green-pale)';
-    btn.style.color = 'var(--green-dark)';
-    btn.style.borderColor = 'var(--green-mid)';
+    if (btn) { btn.textContent = '🔍 Zoom In'; btn.style.background = 'var(--green-pale)'; btn.style.color = 'var(--green-dark)'; btn.style.borderColor = 'var(--green-mid)'; }
   } else {
+    // Zoomed in — full size
     wrap.style.zoom = 1;
-    btn.textContent = '🔍 Zoom Out';
-    btn.style.background = 'var(--white)';
-    btn.style.color = 'var(--mid-gray)';
-    btn.style.borderColor = 'var(--border)';
+    if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
   }
+}
+
+function toggleScZoom() {
+  scZoomed = !scZoomed;
+  applyScZoom();
 }document.getElementById('sc-matchup').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
   updateNineDropdown().then(() => loadScorecard(false));
