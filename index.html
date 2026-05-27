@@ -522,6 +522,22 @@
   .hole-cell.lost { background: rgba(180,40,40,0.13) !important; }
   .hole-cell.tied { background: rgba(180,180,180,0.15) !important; }
   .hole-cell.unplayed { background: transparent !important; }
+  .hole-cell-inner::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 1px;
+    background: rgba(0,0,0,0.1);
+    pointer-events: none;
+  }
+  .hole-cell-inner::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(0,0,0,0.1);
+    pointer-events: none;
+  }
   .hc-tl { font-size: 9px; font-weight: 600; color: var(--mid-gray); padding: 3px 0 0 4px; line-height: 1; align-self: start; }
   .hc-tr { font-size: 15px; font-weight: 700; color: var(--gold); padding: 2px 3px 0 0; line-height: 1; text-align: right; align-self: start; }
   .hc-bl { font-size: 13px; font-weight: 600; color: var(--charcoal); padding: 0 0 3px 4px; line-height: 1; align-self: end; }
