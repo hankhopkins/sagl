@@ -571,7 +571,7 @@
   }
   .results-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
     gap: 12px;
   }
   .results-card {
@@ -580,48 +580,56 @@
     border-radius: 10px;
     overflow: hidden;
   }
-  .results-card-row {
+  .results-matchup-row {
     display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    padding: 9px 14px;
-    gap: 10px;
     border-bottom: 1px solid var(--light-gray);
     font-size: 13px;
   }
-  .results-card-row:last-child { border-bottom: none; }
-  .results-card-row.winner { background: rgba(45,90,61,0.1); }
-  .results-card-row.loser  { background: rgba(180,40,40,0.07); }
-  .results-card-row.tied   { background: rgba(180,180,180,0.1); }
-  .results-card-row.pending { opacity: 0.5; }
-  .results-player { font-weight: 500; color: var(--charcoal); }
-  .results-pts {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.1rem; font-weight: 700;
-    color: var(--green-dark); min-width: 24px; text-align: right;
-  }
-  .results-pts.winner-pts { color: var(--gold); }
-  .results-gross { font-size: 11px; color: var(--mid-gray); min-width: 28px; text-align: right; }
-  .results-net   { font-size: 11px; color: var(--mid-gray); min-width: 32px; text-align: right; }
-  .results-vs-divider {
-    text-align: center; padding: 4px 14px;
-    font-size: 10px; font-weight: 600; letter-spacing: .08em;
-    text-transform: uppercase; color: var(--mid-gray);
-    background: var(--green-pale);
-    border-bottom: 1px solid var(--border);
-  }
-  .results-col-header {
+  .results-matchup-row:last-child { border-bottom: none; }
+  .results-player-cell {
+    padding: 10px 14px;
     display: grid;
     grid-template-columns: 1fr auto auto auto;
-    padding: 5px 14px;
+    align-items: center;
     gap: 10px;
-    background: var(--green-dark);
   }
-  .results-col-header span {
+  .results-player-cell.right {
+    grid-template-columns: auto auto auto 1fr;
+    text-align: right;
+  }
+  .results-player-cell.right .results-player { text-align: right; }
+  .results-player-cell.winner { background: rgba(45,90,61,0.12); }
+  .results-player-cell.loser  { background: rgba(180,40,40,0.07); }
+  .results-player-cell.tied   { background: rgba(180,180,180,0.1); }
+  .results-vs-col {
+    padding: 0 10px;
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--mid-gray);
+    text-align: center;
+  }
+  .results-card-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    background: var(--green-dark);
+    padding: 5px 0;
+  }
+  .results-card-header-side {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .results-card-header-side.right {
+    grid-template-columns: auto auto auto 1fr;
+  }
+  .results-card-header-side span {
     font-size: 9px; font-weight: 500; letter-spacing: .1em;
     text-transform: uppercase; color: rgba(255,255,255,0.6);
   }
-  .results-col-header span:not(:first-child) { text-align: right; }
+  .results-card-header-side.right span { text-align: right; }
+  .results-card-header-side.right span:last-child { text-align: right; }
 
   /* RESPONSIVE */
   @media (max-width: 600px) {
@@ -1387,17 +1395,27 @@ async function loadResults() {
 
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
 
-    const renderRow = (name, pts, gross, net, oppPts) => {
-      const played = pts !== null;
-      let rowCls = 'pending';
-      if (played && oppPts !== null) {
-        rowCls = pts > oppPts ? 'winner' : pts < oppPts ? 'loser' : 'tied';
-      }
-      return `<div class="results-card-row ${rowCls}">
-        <span class="results-player">${name}</span>
-        <span class="results-gross">${fmtNum(gross)}</span>
-        <span class="results-net">${fmtNum(net)}</span>
-        <span class="results-pts ${played && oppPts !== null && pts > oppPts ? 'winner-pts' : ''}">${fmtNum(pts)}</span>
+    const renderMatchupRow = (p1name, p1pts, p1gross, p1net, p2name, p2pts, p2gross, p2net) => {
+      const p1played = p1pts !== null && p2pts !== null;
+      const p2played = p1pts !== null && p2pts !== null;
+      const p1cls = p1played ? (p1pts > p2pts ? 'winner' : p1pts < p2pts ? 'loser' : 'tied') : '';
+      const p2cls = p2played ? (p2pts > p1pts ? 'winner' : p2pts < p1pts ? 'loser' : 'tied') : '';
+      const p1ptsStyle = p1played && p1pts > p2pts ? 'winner-pts' : '';
+      const p2ptsStyle = p2played && p2pts > p1pts ? 'winner-pts' : '';
+      return `<div class="results-matchup-row">
+        <div class="results-player-cell ${p1cls}">
+          <span class="results-player">${p1name}</span>
+          <span class="results-gross">${fmtNum(p1gross)}</span>
+          <span class="results-net" style="font-size:11px;color:var(--mid-gray)">${fmtNum(p1net)}</span>
+          <span class="results-pts ${p1ptsStyle}">${fmtNum(p1pts)}</span>
+        </div>
+        <div class="results-vs-col">vs</div>
+        <div class="results-player-cell right ${p2cls}">
+          <span class="results-pts ${p2ptsStyle}">${fmtNum(p2pts)}</span>
+          <span class="results-net" style="font-size:11px;color:var(--mid-gray)">${fmtNum(p2net)}</span>
+          <span class="results-gross">${fmtNum(p2gross)}</span>
+          <span class="results-player">${p2name}</span>
+        </div>
       </div>`;
     };
 
@@ -1421,12 +1439,13 @@ async function loadResults() {
                           (mb && (mb.p1pts !== null || mb.p2pts !== null));
           if (!hasData) continue;
           html += `<div class="results-card">
-            <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
-            ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
-            ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
-            <div class="results-vs-divider">vs</div>
-            ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
-            ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
+            <div class="results-card-header">
+              <div class="results-card-header-side"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
+              <div style="width:40px"></div>
+              <div class="results-card-header-side right"><span>Pts</span><span>Net</span><span>Gross</span><span>Player</span></div>
+            </div>
+            ${renderMatchupRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2name, ma.p2pts, ma.p2gross, ma.p2net)}
+            ${mb ? renderMatchupRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2name, mb.p2pts, mb.p2gross, mb.p2net) : ''}
           </div>`;
         }
         html += `</div>`;
