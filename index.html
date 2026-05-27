@@ -1371,10 +1371,13 @@ async function loadResults() {
       return;
     }
 
+    // Limit to first 3 weeks (Spring Season match play weeks)
+    const displayWeeks = weeks.filter(w => !w.isScramble && w.weekNum <= 3);
+
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
 
     let html = '';
-    for (const w of weeks) {
+    for (const w of displayWeeks) {
       const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
 
       html += `<div class="results-week-section">
@@ -1395,27 +1398,23 @@ async function loadResults() {
 
       html += `<div class="results-grid">`;
 
-      if (w.isScramble) {
-        for (const m of w.matchups) {
-          html += `<div class="results-card">
-            <div class="results-col-header"><span>Team</span><span>Gross</span><span>Net</span><span>Pts</span></div>
-            ${renderRow(m.p1name, m.p1pts, m.p1gross, m.p1net, m.p2pts)}
-          </div>`;
-        }
-      } else {
-        for (let k = 0; k < w.matchups.length; k += 2) {
-          const ma = w.matchups[k];
-          const mb = w.matchups[k + 1];
-          if (!ma) continue;
-          html += `<div class="results-card">
-            <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
-            ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
-            ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
-            <div class="results-vs-divider">vs</div>
-            ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
-            ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
-          </div>`;
-        }
+      for (let k = 0; k < w.matchups.length; k += 2) {
+        const ma = w.matchups[k];
+        const mb = w.matchups[k + 1];
+        if (!ma) continue;
+
+        // Only show if at least one player has data
+        const anyData = ma.p1pts !== null || ma.p2pts !== null ||
+                        (mb && (mb.p1pts !== null || mb.p2pts !== null));
+
+        html += `<div class="results-card">
+          <div class="results-col-header"><span>Player</span><span>Gross</span><span>Net</span><span>Pts</span></div>
+          ${renderRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2pts)}
+          ${mb ? renderRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2pts) : ''}
+          <div class="results-vs-divider">vs</div>
+          ${renderRow(ma.p2name, ma.p2pts, ma.p2gross, ma.p2net, ma.p1pts)}
+          ${mb ? renderRow(mb.p2name, mb.p2pts, mb.p2gross, mb.p2net, mb.p1pts) : ''}
+        </div>`;
       }
 
       html += `</div></div>`;
