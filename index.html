@@ -520,8 +520,8 @@
     align-items: stretch;
   }
   .hc-tl {
-    font-size: 9px; font-weight: 600; color: var(--mid-gray);
-    padding: 2px 0 0 3px; line-height: 1;
+    font-size: 13px; font-weight: 600; color: var(--charcoal);
+    padding: 3px 0 0 4px; line-height: 1;
     align-self: start; justify-self: start;
     grid-column: 1; grid-row: 1;
   }
@@ -545,9 +545,9 @@
     background: rgba(0,0,0,0.1);
     pointer-events: none;
   }
-  .hc-tr { font-size: 15px; font-weight: 700; color: var(--gold); padding: 2px 3px 0 0; line-height: 1; text-align: right; align-self: start; }
-  .hc-bl { font-size: 13px; font-weight: 600; color: var(--charcoal); padding: 0 0 3px 4px; line-height: 1; align-self: end; }
-  .hc-br { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
+  .hc-tr { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 3px 4px 0 0; line-height: 1; text-align: right; align-self: start; }
+  .hc-bl { font-size: 20px; font-weight: 700; color: var(--gold); padding: 0 0 2px 2px; line-height: 1; align-self: end; }
+  .hc-br { font-size: 13px; font-weight: 700; font-style: italic; color: var(--green-dark); padding: 0 4px 3px 0; line-height: 1; text-align: right; align-self: end; }
   /* Bold vertical divider between hole cells */
   .sc-table td.hole-cell { border-right: 2px solid #aaa !important; }
   .sc-table td.hole-cell:last-of-type { border-right: 1px solid var(--light-gray) !important; }
@@ -1448,19 +1448,27 @@ function renderHoleCell(holeNum, strokeVal, gross, net, result) {
     else if (result === 0.5) cls = 'hole-cell tied';
     else cls = 'hole-cell lost';
   }
-  let strokeStr = '';
-  if (strokeVal === 1) strokeStr = '●';
-  else if (strokeVal === 0.5) strokeStr = '½';
 
-  const grossStr = played ? gross : '';
-  const netStr   = (played && net !== null && !isNaN(net)) ? (net % 1 === 0 ? net : net.toFixed(1)) : '';
+  // TL: gross score
+  const tlStr = played ? gross : '';
+  // TR: net score (italic)
+  const trStr = (played && net !== null && !isNaN(net)) ? (net % 1 === 0 ? net : net.toFixed(1)) : '';
+  // BL: strokes given
+  let blStr = '';
+  if (strokeVal === 1) blStr = '●';
+  else if (strokeVal === 0.5) blStr = '½';
+  // BR: match result (1, 0.5, 0) — shown as bold+italic
+  let brStr = '';
+  if (played && result !== null) {
+    brStr = result % 1 === 0 ? result : result.toFixed(1);
+  }
 
   return `<td class="${cls}">
     <div class="hole-cell-inner">
-      <div class="hc-tl">${holeNum}</div>
-      <div class="hc-tr">${strokeStr}</div>
-      <div class="hc-bl">${grossStr}</div>
-      <div class="hc-br">${netStr}</div>
+      <div class="hc-tl">${tlStr}</div>
+      <div class="hc-tr">${trStr}</div>
+      <div class="hc-bl">${blStr}</div>
+      <div class="hc-br">${brStr}</div>
     </div>
   </td>`;
 }
@@ -1685,7 +1693,7 @@ async function loadScorecard(resetMatchup = false) {
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
     <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
-    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> hole# &nbsp;·&nbsp; <strong>bottom-left</strong> gross &nbsp;·&nbsp; <strong style="color:var(--green-mid)">bottom-right</strong> net</span>
+    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">top-right</em> net &nbsp;·&nbsp; <strong>bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>bottom-right</em></strong> match pts</span>
   </div>`;
 
   container.innerHTML = html;
