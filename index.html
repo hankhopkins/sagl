@@ -749,13 +749,6 @@
         </select>
       </div>
     </div>
-    <div id="sc-zoom-bar" style="margin-bottom:10px;">
-      <button id="sc-zoom-btn" onclick="toggleScZoom()" style="
-        padding:6px 14px; font-size:12px; font-family:inherit; cursor:pointer;
-        border:1px solid var(--green-mid); border-radius:8px;
-        background:var(--green-pale); color:var(--green-dark); font-weight:500;
-      ">🔍 Zoom In</button>
-    </div>
     <div id="sc-content">
       <div class="loading-msg"><div class="spinner"></div>Loading scorecard…</div>
     </div>
@@ -1012,7 +1005,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
   e.target.classList.add('active');
   document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
   if (e.target.dataset.tab === 'scorecards') {
-    setTimeout(applyScZoom, 100);
+    setTimeout(autoScaleScorecard, 100);
   }
 });
 
@@ -2009,7 +2002,8 @@ async function loadScorecard(resetMatchup = false) {
       <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
       <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
       <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
-      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">●</span>Stroke given</span>
+      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">●</span>Full stroke given</span>
+      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">½</span>Half stroke given</span>
     </div>
     <div><strong>Top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">Top-right</em> net &nbsp;·&nbsp; <strong>Bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>Bottom-right</em></strong> match score</div>
   </div>`;
@@ -2017,8 +2011,8 @@ async function loadScorecard(resetMatchup = false) {
   container.innerHTML = html;
 
   // Default to zoomed out — use longer delay to ensure full render
-  scZoomed = false;
-  setTimeout(applyScZoom, 300);
+  
+  setTimeout(autoScaleScorecard, 300);
 }
 
 document.getElementById('sc-week').addEventListener('change', () => {
@@ -2026,48 +2020,26 @@ document.getElementById('sc-week').addEventListener('change', () => {
   updateNineDropdown().then(() => loadScorecard(true));
 });
 
-let scZoomed = false;
-
-function applyScZoom() {
+function autoScaleScorecard() {
   const content = document.getElementById('sc-content');
   const wrap = content ? content.querySelector('.sc-wrap') : null;
-  const btn = document.getElementById('sc-zoom-btn');
   if (!wrap) return;
-
-  if (!scZoomed) {
-    // Zoomed out: scale to fit
-    wrap.style.zoom = '';
-    wrap.style.transform = '';
-    wrap.style.transformOrigin = '';
-    wrap.style.width = '';
-    wrap.style.marginBottom = '';
-
-    const containerWidth = content.offsetWidth;
-    const naturalWidth = wrap.scrollWidth;
-    if (naturalWidth > containerWidth) {
-      const scale = containerWidth / naturalWidth;
-      wrap.style.transformOrigin = 'top left';
-      wrap.style.transform = `scale(${scale})`;
-      wrap.style.width = (naturalWidth) + 'px';
-      // Collapse the extra space the full-size element would take
-      const naturalHeight = wrap.offsetHeight;
-      wrap.style.marginBottom = `-${naturalHeight * (1 - scale)}px`;
-    }
-    if (btn) { btn.textContent = '🔍 Zoom In'; btn.style.background = 'var(--green-pale)'; btn.style.color = 'var(--green-dark)'; btn.style.borderColor = 'var(--green-mid)'; }
-  } else {
-    // Zoomed in: full size, scrollable
-    wrap.style.transform = '';
-    wrap.style.transformOrigin = '';
-    wrap.style.width = '';
-    wrap.style.marginBottom = '';
-    if (btn) { btn.textContent = '🔍 Zoom Out'; btn.style.background = 'var(--white)'; btn.style.color = 'var(--mid-gray)'; btn.style.borderColor = 'var(--border)'; }
+  wrap.style.transform = '';
+  wrap.style.transformOrigin = '';
+  wrap.style.width = '';
+  wrap.style.marginBottom = '';
+  const containerWidth = content.offsetWidth;
+  const naturalWidth = wrap.scrollWidth;
+  if (naturalWidth > containerWidth) {
+    const scale = containerWidth / naturalWidth;
+    wrap.style.transformOrigin = 'top left';
+    wrap.style.transform = `scale(${scale})`;
+    wrap.style.width = naturalWidth + 'px';
+    wrap.style.marginBottom = `-${wrap.offsetHeight * (1 - scale)}px`;
   }
 }
 
-function toggleScZoom() {
-  scZoomed = !scZoomed;
-  applyScZoom();
-}document.getElementById('sc-matchup').addEventListener('change', () => {
+document.getElementById('sc-matchup').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
   updateNineDropdown().then(() => loadScorecard(false));
 });
