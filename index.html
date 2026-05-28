@@ -1011,6 +1011,9 @@ document.getElementById('main-nav').addEventListener('click', e => {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   e.target.classList.add('active');
   document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+  if (e.target.dataset.tab === 'scorecards') {
+    setTimeout(applyScZoom, 100);
+  }
 });
 
 /* STANDINGS */
@@ -2013,13 +2016,9 @@ async function loadScorecard(resetMatchup = false) {
 
   container.innerHTML = html;
 
-  // Default to zoomed out — wait for full paint before measuring
+  // Default to zoomed out — use longer delay to ensure full render
   scZoomed = false;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      setTimeout(applyScZoom, 100);
-    });
-  });
+  setTimeout(applyScZoom, 300);
 }
 
 document.getElementById('sc-week').addEventListener('change', () => {
