@@ -1793,9 +1793,7 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
   const p1totalPts = calcTotalPts(p1results, p2results);
   const p2totalPts = calcTotalPts(p2results, p1results);
 
-  let html = `<tr><td colspan="16" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}`;
-  if (roundDateStr) html += `<span style="font-weight:400;font-size:11px;opacity:0.8;margin-left:12px;">${roundDateStr}</span>`;
-  html += `</td></tr>`;
+  let html = `<tr><td colspan="16" class="sc-matchup-header" style="background:${hdrBg};color:${hdrColor}">${label}</td></tr>`;
 
   for (const pd of players) {
     if (!pd.pr || !pd.name) continue;
