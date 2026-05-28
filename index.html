@@ -2009,9 +2009,9 @@ async function loadScorecard(resetMatchup = false) {
     </tr></thead>
     <tbody>`;
 
-  html += `<tr class="sc-hdcp"><td>Yards</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${yardCells.map((v, i) => `<td${i===0?' style="border-left:3px solid #aaa"':''}>${v !== null && v !== '' ? v : ''}</td>`).join('')}<td>${yardTotal}</td><td></td></tr>`;
-  html += `<tr class="sc-par"><td>Par</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${parCells.map((v, i) => `<td${i===0?' style="border-left:3px solid #aaa;font-weight:600"':' style="font-weight:600"'}>${v !== null && v !== '' ? v : ''}</td>`).join('')}<td style="font-weight:600">${parTotal}</td><td></td></tr>`;
-  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${hdcpCells.map((v, i) => `<td${i===0?' style="border-left:3px solid #aaa"':''}>${v !== null && v !== '' ? v : ''}</td>`).join('')}<td></td><td></td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Yards</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td><td></td></tr>`;
+  html += `<tr class="sc-par"><td>Par</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${parCells.map(v => '<td style="font-weight:600">' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td style="font-weight:600">${parTotal}</td><td></td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td><td></td></tr>`;
 
   html += `<tr style="background:var(--green-dark)">
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left">Player</th>
