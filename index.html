@@ -1491,7 +1491,7 @@ async function loadResults() {
       // The grid: 1fr 52 52 44 | 36(vs) | 44 52 52 1fr
       // vs col is neutral; split color at vs boundaries
       // Use a 3-stop gradient: p1 color | transparent center | p2 color
-      const getColor = (pts, opp) => !played ? 'transparent' : pts > opp ? 'rgba(45,90,61,0.1)' : pts < opp ? 'rgba(180,40,40,0.07)' : 'rgba(180,180,180,0.1)';
+      const getColor = (pts, opp) => !played ? 'transparent' : pts > opp ? 'rgba(34,85,47,0.18)' : pts < opp ? 'rgba(160,30,30,0.15)' : 'rgba(100,100,100,0.15)';
       const c1 = getColor(p1pts, p2pts);
       const c2 = getColor(p2pts, p1pts);
       // Split: left half = p1, right half = p2, with vs column (centered) neutral
