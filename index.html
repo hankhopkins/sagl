@@ -586,7 +586,7 @@
   }
   .results-matchup-row {
     display: grid;
-    grid-template-columns: 1fr 52px 52px 44px 36px 44px 52px 52px 1fr;
+    grid-template-columns: 1fr 56px 56px 48px 36px 48px 56px 56px 1fr;
     align-items: center;
     border-bottom: 1px solid var(--light-gray);
     font-size: 13px;
@@ -594,14 +594,14 @@
   .results-matchup-row:last-child { border-bottom: none; }
   .results-card-header {
     display: grid;
-    grid-template-columns: 1fr 52px 52px 44px 36px 44px 52px 52px 1fr;
+    grid-template-columns: 1fr 56px 56px 48px 36px 48px 56px 56px 1fr;
     background: var(--green-dark);
     padding: 5px 0;
   }
   .results-card-header span {
     font-size: 9px; font-weight: 500; letter-spacing: .1em;
     text-transform: uppercase; color: rgba(255,255,255,0.6);
-    text-align: right; padding: 0 6px;
+    text-align: center; padding: 0 6px;
   }
   .results-card-header span:first-child { text-align: left; padding-left: 14px; }
   .results-card-header span:last-child  { text-align: right; padding-right: 14px; }
@@ -610,7 +610,7 @@
 
   .rc-name-l  { padding: 7px 6px 7px 14px; font-weight: 500; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-name-r  { padding: 7px 14px 7px 6px; font-weight: 500; color: var(--charcoal); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rc-num     { padding: 7px 6px; text-align: right; font-size: 12px; color: var(--charcoal); }
+  .rc-num     { padding: 7px 6px; text-align: center; font-size: 12px; color: var(--charcoal); }
   .rc-shortname { display: none; }
   .rc-fullname  { display: inline; }
   .rc-pts     { padding: 7px 6px; text-align: center; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); }
@@ -1487,17 +1487,14 @@ async function loadResults() {
       const p1gold = played && p1pts > p2pts ? 'gold' : '';
       const p2gold = played && p2pts > p1pts ? 'gold' : '';
       const fmt = (v) => v !== null ? fmtNum(v) : '—';
-      // Build per-side background using CSS gradient so the whole row is one element
-      const colors = {
-        winner: 'rgba(45,90,61,0.1)',
-        loser:  'rgba(180,40,40,0.07)',
-        tied:   'rgba(180,180,180,0.1)',
-        none:   'transparent'
-      };
-      const getColor = (pts, opp) => !played ? colors.none : pts > opp ? colors.winner : pts < opp ? colors.loser : colors.tied;
+      // The grid: 1fr 52 52 44 | 36(vs) | 44 52 52 1fr
+      // vs col is neutral; split color at vs boundaries
+      // Use a 3-stop gradient: p1 color | transparent center | p2 color
+      const getColor = (pts, opp) => !played ? 'transparent' : pts > opp ? 'rgba(45,90,61,0.1)' : pts < opp ? 'rgba(180,40,40,0.07)' : 'rgba(180,180,180,0.1)';
       const c1 = getColor(p1pts, p2pts);
       const c2 = getColor(p2pts, p1pts);
-      const rowStyle = `background: linear-gradient(to right, ${c1} 0%, ${c1} 50%, ${c2} 50%, ${c2} 100%);`;
+      // Split: left half = p1, right half = p2, with vs column (centered) neutral
+      const rowStyle = `background: linear-gradient(to right, ${c1} 0%, ${c1} calc(50% - 18px), transparent calc(50% - 18px), transparent calc(50% + 18px), ${c2} calc(50% + 18px), ${c2} 100%);`;
 
       return `<div class="results-matchup-row" style="${rowStyle}">
         <div class="rc-name-l"><span class="rc-fullname">${p1name}</span><span class="rc-shortname">${lastName(p1name)}</span></div>
