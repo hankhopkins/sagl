@@ -2095,6 +2095,7 @@ function autoScaleScorecard() {
 
 document.getElementById('sc-matchup').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
+  document.getElementById('sc-nine').value = 'front'; // reset to front before detecting
   updateNineDropdown().then(() => loadScorecard(false));
 });
 document.getElementById('sc-nine').addEventListener('change', () => {
