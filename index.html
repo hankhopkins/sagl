@@ -549,7 +549,7 @@
     pointer-events: none;
   }
   .hc-tr { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 3px 4px 0 0; line-height: 1; text-align: right; align-self: start; }
-  .hc-bl { font-size: 22px; font-weight: 700; color: var(--gold); padding: 0 0 1px 2px; line-height: 1; align-self: end; display: flex; align-items: flex-end; justify-content: flex-start; }
+  .hc-bl { font-size: 28px; font-weight: 700; color: var(--gold); padding: 0 0 1px 2px; line-height: 1; align-self: end; display: flex; align-items: flex-end; justify-content: flex-start; }
   .hc-br { font-size: 10px; font-weight: 700; font-style: italic; color: #fff; background: var(--green-dark); border-radius: 100px; min-width: 16px; max-width: 26px; height: 16px; display: flex; align-items: center; justify-content: center; padding: 0 3px; margin: 0 2px 2px 0; align-self: end; justify-self: end; line-height: 1; overflow: hidden; }
   /* Bold vertical divider between hole cells */
   .sc-table td.hole-cell { border-right: 2px solid #aaa !important; }
@@ -630,7 +630,11 @@
     nav { justify-content: flex-start; }
     .nav-btn { padding: 0.8rem 0.9rem; font-size: 12px; }
 
-    /* Scorecard mobile tweaks */
+    /* Standings mobile tweaks */
+    .standings-pts-match { display: none; }
+    .ind-birdie, .ind-par, .ind-bogey, .ind-double { display: none; }
+    thead th, tbody td { padding: 8px 8px; font-size: 12px; }
+    .rank-cell { width: 28px; }
     .sc-course-header { flex-direction: column; gap: 4px; }
     .sc-table td.sc-date-col,
     .sc-table th.sc-date-col { display: none; }
@@ -638,7 +642,7 @@
     .hole-cell { width: 46px; min-width: 46px; height: 46px; }
     .hc-tl { font-size: 11px; }
     .hc-tr { font-size: 11px; }
-    .hc-bl { font-size: 16px; }
+    .hc-bl { font-size: 22px; }
     .hc-br { font-size: 9px; min-width: 14px; height: 14px; }
 
     /* Results mobile tweaks — hide net, rebalance grid */
@@ -692,7 +696,7 @@
     <div class="table-wrap">
       <table id="s1-table">
         <thead><tr>
-          <th>#</th><th>Team</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Points</th><th>Pts/Match</th>
+          <th>#</th><th>Team</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Points</th><th class="standings-pts-match">Pts/Match</th>
         </tr></thead>
         <tbody id="s1-body">
           <tr><td colspan="8" class="loading-msg"><div class="spinner"></div>Loading live data…</td></tr>
@@ -704,7 +708,7 @@
     <div class="table-wrap">
       <table id="ind-table">
         <thead><tr>
-          <th>Player</th><th>W</th><th>L</th><th>T</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Birdie- Avg</th><th>Par Avg</th><th>Bogey Avg</th><th>Double+ Avg</th>
+          <th>Player</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Pts/Match</th><th class="ind-gross">Gross Avg</th><th class="ind-net">Net Avg</th><th class="ind-birdie">Birdie- Avg</th><th class="ind-par">Par Avg</th><th class="ind-bogey">Bogey Avg</th><th class="ind-double">Double+ Avg</th>
         </tr></thead>
         <tbody id="ind-body">
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -1030,7 +1034,7 @@ async function loadStandings() {
     rows.sort((a,b) => parseFloat(b[8] || 0) - parseFloat(a[8] || 0));
     const tbody = document.getElementById('s1-body');
     if (rows.every(r => parseFloat(r[8] || 0) === 0)) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map((r, i) => {
@@ -1043,16 +1047,15 @@ async function loadStandings() {
       return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
         <td class="${rankClass(i)}">${rankDisplay}</td>
         <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
-        <td>${fmtPts(r[3])}</td>
         <td>${fmtPts(r[4])}</td>
         <td>${fmtPts(r[5])}</td>
-        <td>${fmtPts(r[6])}</td>
+        <td class="standings-t-col">${fmtPts(r[6])}</td>
         <td><strong>${fmtPts(r[8])}</strong></td>
-        <td>${fmtPts(r[9])}</td>
+        <td class="standings-pts-match">${fmtPts(r[9])}</td>
       </tr>`;
     }).join('');
   } catch(e) {
-    document.getElementById('s1-body').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
+    document.getElementById('s1-body').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
   }
 }
 
@@ -1071,14 +1074,14 @@ async function loadIndividual() {
       <td class="team-name">${r[0]}</td>
       <td>${fmtPts(r[2])}</td>
       <td>${fmtPts(r[3])}</td>
-      <td>${fmtPts(r[4])}</td>
+      <td class="standings-t-col">${fmtPts(r[4])}</td>
       <td>${fmtPts(r[6])}</td>
-      <td>${fmtPts(r[7])}</td>
-      <td>${fmtPts(r[8])}</td>
-      <td>${fmtPts(r[18])}</td>
-      <td>${fmtPts(r[19])}</td>
-      <td>${fmtPts(r[20])}</td>
-      <td>${fmtPts(r[21])}</td>
+      <td class="ind-gross">${fmtPts(r[7])}</td>
+      <td class="ind-net">${fmtPts(r[8])}</td>
+      <td class="ind-birdie">${fmtPts(r[18])}</td>
+      <td class="ind-par">${fmtPts(r[19])}</td>
+      <td class="ind-bogey">${fmtPts(r[20])}</td>
+      <td class="ind-double">${fmtPts(r[21])}</td>
     </tr>`).join('');
   } catch(e) {
     document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
