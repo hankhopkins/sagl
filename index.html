@@ -638,6 +638,19 @@
     .hc-tr { font-size: 11px; }
     .hc-bl { font-size: 16px; }
     .hc-br { font-size: 9px; min-width: 14px; height: 14px; }
+
+    /* Results mobile tweaks — hide net, rebalance grid */
+    .results-matchup-row,
+    .results-card-header {
+      grid-template-columns: 1fr 44px 44px 30px 44px 44px 1fr;
+    }
+    .rc-net-col { display: none; }
+    .rc-name-l, .rc-name-r { font-size: 12px; padding: 6px 4px 6px 10px; }
+    .rc-name-r { padding: 6px 10px 6px 4px; }
+    .rc-num { padding: 6px 4px; font-size: 11px; }
+    .rc-pts { padding: 6px 4px; font-size: 0.95rem; }
+    .rc-vs { padding: 6px 2px; font-size: 9px; }
+    .results-grid { max-width: 100%; }
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1463,12 +1476,12 @@ async function loadResults() {
       return `<div class="results-matchup-row">
         <div class="rc-name-l ${p1cls}">${p1name}</div>
         <div class="rc-num ${p1cls}">${fmt(p1gross)}</div>
-        <div class="rc-num ${p1cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p1net)}</div>
+        <div class="rc-num rc-net-col ${p1cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p1net)}</div>
         <div class="rc-pts ${p1cls} ${p1gold}">${fmt(p1pts)}</div>
         <div class="rc-vs">vs</div>
         <div class="rc-pts ${p2cls} ${p2gold}">${fmt(p2pts)}</div>
         <div class="rc-num ${p2cls}">${fmt(p2gross)}</div>
-        <div class="rc-num ${p2cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p2net)}</div>
+        <div class="rc-num rc-net-col ${p2cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p2net)}</div>
         <div class="rc-name-r ${p2cls}">${p2name}</div>
       </div>`;
     };
@@ -1497,9 +1510,9 @@ async function loadResults() {
           const dateStr = dates[cardIdx * 2] || dates[cardIdx * 2 + 1] || '';
           html += `<div class="results-card">
             <div class="results-card-header">
-              <span>Player</span><span>Gross</span><span>Net</span><span class="pts-head">Pts</span>
+              <span>Player</span><span>Gross</span><span class="rc-net-col">Net</span><span class="pts-head">Pts</span>
               <span class="vs-head">·</span>
-              <span class="pts-head">Pts</span><span>Gross</span><span>Net</span><span>Player</span>
+              <span class="pts-head">Pts</span><span>Gross</span><span class="rc-net-col">Net</span><span>Player</span>
             </div>
             ${dateStr ? `<div style="padding:3px 14px;font-size:11px;color:var(--mid-gray);background:var(--green-pale);border-bottom:1px solid var(--border);">${dateStr}</div>` : ''}
             ${renderMatchupRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2name, ma.p2pts, ma.p2gross, ma.p2net)}
