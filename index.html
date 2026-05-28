@@ -549,7 +549,7 @@
     pointer-events: none;
   }
   .hc-tr { font-size: 13px; font-weight: 500; font-style: italic; color: #555; padding: 3px 4px 0 0; line-height: 1; text-align: right; align-self: start; }
-  .hc-bl { font-size: 28px; font-weight: 700; color: var(--gold); padding: 0 0 1px 2px; line-height: 1; align-self: end; display: flex; align-items: flex-end; justify-content: flex-start; }
+  .hc-bl { font-size: 28px; font-weight: 700; color: var(--gold); line-height: 1; align-self: end; justify-self: center; display: flex; align-items: center; justify-content: center; padding-bottom: 2px; }
   .hc-br { font-size: 10px; font-weight: 700; font-style: italic; color: #fff; background: var(--green-dark); border-radius: 100px; min-width: 16px; max-width: 26px; height: 16px; display: flex; align-items: center; justify-content: center; padding: 0 3px; margin: 0 2px 2px 0; align-self: end; justify-self: end; line-height: 1; overflow: hidden; }
   /* Bold vertical divider between hole cells */
   .sc-table td.hole-cell { border-right: 2px solid #aaa !important; }
@@ -608,12 +608,12 @@
   .results-card-header span.vs-head { text-align: center; color: transparent; }
   .results-card-header span.pts-head { text-align: center; }
 
-  .rc-name-l  { padding: 7px 6px 7px 14px; font-weight: 500; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rc-name-r  { padding: 7px 14px 7px 6px; font-weight: 500; color: var(--charcoal); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rc-num     { padding: 7px 6px; text-align: center; font-size: 12px; color: var(--charcoal); }
+  .rc-name-l  { padding: 7px 6px 7px 14px; font-weight: 500; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+  .rc-name-r  { padding: 7px 14px 7px 6px; font-weight: 500; color: var(--charcoal); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: flex-end; }
+  .rc-num     { padding: 7px 6px; text-align: center; font-size: 12px; color: var(--charcoal); display: flex; align-items: center; justify-content: center; }
   .rc-shortname { display: none; }
   .rc-fullname  { display: inline; }
-  .rc-pts     { padding: 7px 6px; text-align: center; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); }
+  .rc-pts     { padding: 7px 6px; text-align: center; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); display: flex; align-items: center; justify-content: center; }
   .rc-pts.gold { color: var(--gold); }
   .rc-vs      { padding: 7px 4px; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--mid-gray); border-left: 1px solid var(--light-gray); border-right: 1px solid var(--light-gray); }
 
