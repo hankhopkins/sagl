@@ -627,6 +627,17 @@
     .stat-value { font-size: 1.8rem; }
     nav { justify-content: flex-start; }
     .nav-btn { padding: 0.8rem 0.9rem; font-size: 12px; }
+
+    /* Scorecard mobile tweaks */
+    .sc-course-header { flex-direction: column; gap: 4px; }
+    .sc-table td.sc-date-col,
+    .sc-table th.sc-date-col { display: none; }
+    .sc-table th.sc-coursehdcp-col { font-size: 8px; letter-spacing: 0; }
+    .hole-cell { width: 46px; min-width: 46px; height: 46px; }
+    .hc-tl { font-size: 11px; }
+    .hc-tr { font-size: 11px; }
+    .hc-bl { font-size: 16px; }
+    .hc-br { font-size: 9px; min-width: 14px; height: 14px; }
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1838,9 +1849,9 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
 
     html += `<tr class="sc-matchup${pd.name === p2name ? ' sc-matchup-divider' : ''}">
       <td><span style="${nameStyle}">${pd.name}</span></td>
-      <td style="color:var(--mid-gray);font-size:11px">${roundDateStr}</td>
+      <td class="sc-date-col" style="color:var(--mid-gray);font-size:11px">${roundDateStr}</td>
       <td style="text-align:center">${currentHdcp}</td>
-      <td style="text-align:center">${pd.courseHdcp.toFixed(1)}</td>
+      <td class="sc-coursehdcp-col" style="text-align:center">${pd.courseHdcp.toFixed(1)}</td>
       ${hdcpCells.map((holeHdcp, hIdx) => {
         const h = holeHdcp ? Number(holeHdcp) : null;
         let strokeVal = 0;
@@ -1955,15 +1966,15 @@ async function loadScorecard(resetMatchup = false) {
     </tr></thead>
     <tbody>`;
 
-  html += `<tr class="sc-hdcp"><td>Yards</td><td></td><td></td><td></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td><td></td></tr>`;
-  html += `<tr class="sc-par"><td>Par</td><td></td><td></td><td></td>${parCells.map(v => '<td style="font-weight:600">' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td style="font-weight:600">${parTotal}</td><td></td></tr>`;
-  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td></td><td></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td><td></td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Yards</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${yardCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTotal}</td><td></td></tr>`;
+  html += `<tr class="sc-par"><td>Par</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${parCells.map(v => '<td style="font-weight:600">' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td style="font-weight:600">${parTotal}</td><td></td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td class="sc-date-col"></td><td></td><td class="sc-coursehdcp-col"></td>${hdcpCells.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td><td></td></tr>`;
 
   html += `<tr style="background:var(--green-dark)">
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left">Player</th>
-    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Date</th>
+    <th class="sc-date-col" style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Date</th>
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Hdcp</th>
-    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
+    <th class="sc-coursehdcp-col" style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
     ${holes.map(() => '<th style="color:#fff;padding:7px 10px;font-size:10px"></th>').join('')}
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Gross/Net</th>
     <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Pts</th>
