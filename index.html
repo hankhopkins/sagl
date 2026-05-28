@@ -631,10 +631,14 @@
     .nav-btn { padding: 0.8rem 0.9rem; font-size: 12px; }
 
     /* Standings mobile tweaks */
-    .standings-pts-match { display: none; }
-    .ind-birdie, .ind-par, .ind-bogey, .ind-double { display: none; }
+    .ind-birdie, .ind-par, .ind-bogey, .ind-double, .ind-oppnet { display: none; }
     thead th, tbody td { padding: 8px 8px; font-size: 12px; }
     .rank-cell { width: 28px; }
+
+  /* Landscape: show Opp Net */
+  @media (max-width: 600px) and (orientation: landscape) {
+    .ind-oppnet { display: table-cell; }
+  }
     .sc-course-header { flex-direction: column; gap: 4px; }
     .sc-table td.sc-date-col,
     .sc-table th.sc-date-col { display: none; }
@@ -696,7 +700,7 @@
     <div class="table-wrap">
       <table id="s1-table">
         <thead><tr>
-          <th>#</th><th>Team</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Points</th><th class="standings-pts-match">Pts/Match</th>
+          <th>#</th><th>Team</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Pts</th><th class="standings-pts-match">Pts/Match</th>
         </tr></thead>
         <tbody id="s1-body">
           <tr><td colspan="8" class="loading-msg"><div class="spinner"></div>Loading live data…</td></tr>
@@ -708,7 +712,7 @@
     <div class="table-wrap">
       <table id="ind-table">
         <thead><tr>
-          <th>Player</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Pts/Match</th><th class="ind-gross">Gross Avg</th><th class="ind-net">Net Avg</th><th class="ind-birdie">Birdie- Avg</th><th class="ind-par">Par Avg</th><th class="ind-bogey">Bogey Avg</th><th class="ind-double">Double+ Avg</th>
+          <th>Player</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Pts/Match</th><th class="ind-gross">Gross Avg</th><th class="ind-net">Net Avg</th><th class="ind-oppnet">Opp Net</th><th class="ind-birdie">Birdie- Avg</th><th class="ind-par">Par Avg</th><th class="ind-bogey">Bogey Avg</th><th class="ind-double">Double+ Avg</th>
         </tr></thead>
         <tbody id="ind-body">
           <tr><td colspan="10" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>
@@ -1078,6 +1082,7 @@ async function loadIndividual() {
       <td>${fmtPts(r[6])}</td>
       <td class="ind-gross">${fmtPts(r[7])}</td>
       <td class="ind-net">${fmtPts(r[8])}</td>
+      <td class="ind-oppnet">${fmtPts(r[9])}</td>
       <td class="ind-birdie">${fmtPts(r[18])}</td>
       <td class="ind-par">${fmtPts(r[19])}</td>
       <td class="ind-bogey">${fmtPts(r[20])}</td>
