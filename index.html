@@ -1428,8 +1428,8 @@ async function loadResults() {
               dateStr = dateVal;
             } else if (dateVal && typeof dateVal === 'number') {
               // Add 1 to compensate for UTC timezone offset shifting date back one day
-              const d = new Date((dateVal - 25569 + 1) * 86400 * 1000);
-              dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+              const d = new Date((dateVal - 25569) * 86400 * 1000);
+              dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric', timeZone:'UTC'});
             }
             dates.push(dateStr);
             si += 3;
@@ -1739,7 +1739,7 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
     roundDateStr = roundDateRaw;
   } else if (roundDateRaw && typeof roundDateRaw === 'number') {
     const d = new Date((roundDateRaw - 25569) * 86400 * 1000);
-    roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
+    roundDateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric', timeZone:'UTC'});
   }
 
   const isGold = matchupNum % 2 === 0;
