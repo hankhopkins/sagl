@@ -1361,9 +1361,9 @@ async function loadResults() {
     while (i < rows.length) {
       const r = rows[i];
       // Week header is at col[2] = 'Week', next row has col[2]=weekNum, col[7]=course
-      if (r && r[2] === 'Week' && rows[i+1] && !isNaN(parseFloat(rows[i+1][2]))) {
-        const weekNum = parseFloat(rows[i+1][2]);
-        const course  = rows[i+1][7] || '';
+      if (r && r[2] === 'Week' && rows[i+1] && !isNaN(parseFloat(rows[i+1][3]))) {
+        const weekNum = parseFloat(rows[i+1][3]);
+        const course  = rows[i+1][8] || '';
         const isScramble = course === 'Meadowbrook';
         // Skip column header row (i+2), data starts at i+3
         const matchups = [];
@@ -1427,7 +1427,8 @@ async function loadResults() {
             if (dateVal && typeof dateVal === 'string' && !dateVal.includes('Date')) {
               dateStr = dateVal;
             } else if (dateVal && typeof dateVal === 'number') {
-              const d = new Date((dateVal - 25569) * 86400 * 1000);
+              // Add 1 to compensate for UTC timezone offset shifting date back one day
+              const d = new Date((dateVal - 25569 + 1) * 86400 * 1000);
               dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'});
             }
             dates.push(dateStr);
