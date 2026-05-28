@@ -1870,7 +1870,12 @@ function renderMatchupBlock(block, matchupNum, hdcpCells, rawData) {
     }
 
     const ptsDisplay = totalPts !== null
-      ? `<span class="pts-badge${totalPts >= 5 ? ' gold-badge' : ''}">${totalPts % 1 === 0 ? totalPts : totalPts.toFixed(1)}</span>`
+      ? (() => {
+          const won = totalPts > 5, tied = totalPts === 5, lost = totalPts < 5;
+          const bg = won ? 'rgba(45,90,61,0.85)' : tied ? 'rgba(120,120,120,0.6)' : 'rgba(160,40,40,0.8)';
+          const label = totalPts % 1 === 0 ? totalPts : totalPts.toFixed(1);
+          return `<span class="pts-badge" style="background:${bg};color:#fff;">${label}</span>`;
+        })()
       : `<span style="color:var(--mid-gray);font-size:12px">—</span>`;
 
     // Name highlight: green=win, red=loss, gray=tie
