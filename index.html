@@ -2061,6 +2061,8 @@ function autoScaleTables() {
 // Run on load and orientation change
 window.addEventListener('orientationchange', () => setTimeout(autoScaleTables, 300));
 window.addEventListener('resize', () => setTimeout(autoScaleTables, 300));
+
+function autoScaleScorecard() {
   const content = document.getElementById('sc-content');
   const wrap = content ? content.querySelector('.sc-wrap') : null;
   if (!wrap) return;
