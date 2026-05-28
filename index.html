@@ -635,9 +635,13 @@
     thead th, tbody td { padding: 8px 8px; font-size: 12px; }
     .rank-cell { width: 28px; }
 
-  /* Landscape: show Opp Net */
-  @media (max-width: 600px) and (orientation: landscape) {
+  /* Landscape: show Opp Net and auto-scale tables */
+  @media (max-width: 900px) and (orientation: landscape) {
     .ind-oppnet { display: table-cell; }
+    #ind-table, #s1-table {
+      display: block;
+      transform-origin: top left;
+    }
   }
     .sc-course-header { flex-direction: column; gap: 4px; }
     .sc-table td.sc-date-col,
@@ -1015,6 +1019,9 @@ document.getElementById('main-nav').addEventListener('click', e => {
   if (e.target.dataset.tab === 'scorecards') {
     setTimeout(autoScaleScorecard, 100);
   }
+  if (e.target.dataset.tab === 'standings') {
+    setTimeout(autoScaleTables, 100);
+  }
 });
 
 /* STANDINGS */
@@ -1058,6 +1065,7 @@ async function loadStandings() {
         <td class="standings-pts-match">${fmtPts(r[9])}</td>
       </tr>`;
     }).join('');
+    setTimeout(autoScaleTables, 300);
   } catch(e) {
     document.getElementById('s1-body').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
   }
@@ -1088,6 +1096,7 @@ async function loadIndividual() {
       <td class="ind-bogey">${fmtPts(r[20])}</td>
       <td class="ind-double">${fmtPts(r[21])}</td>
     </tr>`).join('');
+    setTimeout(autoScaleTables, 300);
   } catch(e) {
     document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
   }
@@ -2028,7 +2037,30 @@ document.getElementById('sc-week').addEventListener('change', () => {
   updateNineDropdown().then(() => loadScorecard(true));
 });
 
-function autoScaleScorecard() {
+function autoScaleTables() {
+  ['s1-table', 'ind-table'].forEach(id => {
+    const table = document.getElementById(id);
+    if (!table) return;
+    const wrap = table.closest('.table-wrap');
+    if (!wrap) return;
+    // Reset first
+    table.style.transform = '';
+    table.style.transformOrigin = '';
+    table.style.marginBottom = '';
+    const containerWidth = wrap.offsetWidth;
+    const naturalWidth = table.scrollWidth;
+    if (naturalWidth > containerWidth) {
+      const scale = containerWidth / naturalWidth;
+      table.style.transformOrigin = 'top left';
+      table.style.transform = `scale(${scale})`;
+      table.style.marginBottom = `-${table.offsetHeight * (1 - scale)}px`;
+    }
+  });
+}
+
+// Run on load and orientation change
+window.addEventListener('orientationchange', () => setTimeout(autoScaleTables, 300));
+window.addEventListener('resize', () => setTimeout(autoScaleTables, 300));
   const content = document.getElementById('sc-content');
   const wrap = content ? content.querySelector('.sc-wrap') : null;
   if (!wrap) return;
