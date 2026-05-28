@@ -611,6 +611,8 @@
   .rc-name-l  { padding: 7px 6px 7px 14px; font-weight: 500; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-name-r  { padding: 7px 14px 7px 6px; font-weight: 500; color: var(--charcoal); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rc-num     { padding: 7px 6px; text-align: right; font-size: 12px; color: var(--charcoal); }
+  .rc-shortname { display: none; }
+  .rc-fullname  { display: inline; }
   .rc-pts     { padding: 7px 6px; text-align: center; font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--green-dark); }
   .rc-pts.gold { color: var(--gold); }
   .rc-vs      { padding: 7px 4px; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--mid-gray); border-left: 1px solid var(--light-gray); border-right: 1px solid var(--light-gray); }
@@ -645,6 +647,8 @@
       grid-template-columns: 1fr 44px 44px 30px 44px 44px 1fr;
     }
     .rc-net-col { display: none; }
+    .rc-fullname { display: none; }
+    .rc-shortname { display: inline; }
     .rc-name-l, .rc-name-r { font-size: 12px; padding: 6px 4px 6px 10px; }
     .rc-name-r { padding: 6px 10px 6px 4px; }
     .rc-num { padding: 6px 4px; font-size: 11px; }
@@ -1474,7 +1478,7 @@ async function loadResults() {
       const p2gold = played && p2pts > p1pts ? 'gold' : '';
       const fmt = (v) => v !== null ? fmtNum(v) : '—';
       return `<div class="results-matchup-row">
-        <div class="rc-name-l ${p1cls}">${p1name}</div>
+        <div class="rc-name-l ${p1cls}"><span class="rc-fullname">${p1name}</span><span class="rc-shortname">${lastName(p1name)}</span></div>
         <div class="rc-num ${p1cls}">${fmt(p1gross)}</div>
         <div class="rc-num rc-net-col ${p1cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p1net)}</div>
         <div class="rc-pts ${p1cls} ${p1gold}">${fmt(p1pts)}</div>
@@ -1482,7 +1486,7 @@ async function loadResults() {
         <div class="rc-pts ${p2cls} ${p2gold}">${fmt(p2pts)}</div>
         <div class="rc-num ${p2cls}">${fmt(p2gross)}</div>
         <div class="rc-num rc-net-col ${p2cls}" style="color:var(--mid-gray);font-style:italic">${fmt(p2net)}</div>
-        <div class="rc-name-r ${p2cls}">${p2name}</div>
+        <div class="rc-name-r ${p2cls}"><span class="rc-fullname">${p2name}</span><span class="rc-shortname">${lastName(p2name)}</span></div>
       </div>`;
     };
 
@@ -1997,11 +2001,14 @@ async function loadScorecard(resetMatchup = false) {
   if (teamMatchup.blockB) html += renderMatchupBlock(teamMatchup.blockB, 1, hdcpCells, rawData);
 
   html += `</tbody></table></div>
-  <div style="margin-top:10px;font-size:11px;color:var(--mid-gray);display:flex;gap:16px;flex-wrap:wrap;padding:0 2px;">
-    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
-    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
-    <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
-    <span style="color:var(--gold);font-weight:600;">●</span><span style="margin-left:3px;">= stroke given &nbsp;·&nbsp; <strong>top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">top-right</em> net &nbsp;·&nbsp; <strong>bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>bottom-right</em></strong> match score</span>
+  <div style="margin-top:10px;font-size:11px;color:var(--mid-gray);padding:0 2px;">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px;">
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
+      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">●</span>Stroke given</span>
+    </div>
+    <div><strong>Top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">Top-right</em> net &nbsp;·&nbsp; <strong>Bottom-left</strong> strokes &nbsp;·&nbsp; <strong><em>Bottom-right</em></strong> match score</div>
   </div>`;
 
   container.innerHTML = html;
