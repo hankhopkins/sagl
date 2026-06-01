@@ -997,6 +997,13 @@ function fmtPts(v) {
   return n % 1 === 0 ? n.toString() : n.toFixed(1);
 }
 
+function fmtAvg(v) {
+  if (v === '' || v === null || v === undefined) return '—';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '—';
+  return n % 1 === 0 ? n.toString() : n.toFixed(1);
+}
+
 function initials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
@@ -1090,10 +1097,10 @@ async function loadIndividual() {
       <td class="ind-gross">${fmtPts(r[7])}</td>
       <td class="ind-net">${fmtPts(r[8])}</td>
       <td class="ind-oppnet">${fmtPts(r[9])}</td>
-      <td class="ind-birdie">${fmtPts(r[18])}</td>
-      <td class="ind-par">${fmtPts(r[19])}</td>
-      <td class="ind-bogey">${fmtPts(r[20])}</td>
-      <td class="ind-double">${fmtPts(r[21])}</td>
+      <td class="ind-birdie">${fmtAvg(r[18])}</td>
+      <td class="ind-par">${fmtAvg(r[19])}</td>
+      <td class="ind-bogey">${fmtAvg(r[20])}</td>
+      <td class="ind-double">${fmtAvg((parseFloat(r[21])||0) + (parseFloat(r[22])||0))}</td>
     </tr>`).join('');
     setTimeout(autoScaleTables, 300);
   } catch(e) {
