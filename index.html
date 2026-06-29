@@ -390,6 +390,29 @@
   .rule-card-body { font-size: 12.5px; color: var(--mid-gray); line-height: 1.6; }
   .rule-card-body strong { color: var(--charcoal); font-weight: 500; }
 
+  /* SCRAMBLE */
+  .scramble-sc-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    color: var(--green-dark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+  }
+  .scramble-sc-toggle:hover { background: var(--green-pale); }
+  .scramble-sc-toggle .toggle-arrow { transition: transform 0.2s; display: inline-block; }
+  .scramble-sc-toggle.open .toggle-arrow { transform: rotate(90deg); }
+  .scramble-sc-body { display: none; margin-top: 1rem; }
+  .scramble-sc-body.open { display: block; }
+  .sc-skin-winner { background: rgba(201,168,76,0.15); font-weight: 600; color: var(--green-dark); }
+
   /* LOADING */
   .loading-msg {
     text-align: center;
@@ -685,6 +708,7 @@
   <button class="nav-btn" data-tab="scorecards">Matchups</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
   <button class="nav-btn" data-tab="players">Players</button>
+  <button class="nav-btn" data-tab="scramble">Scramble</button>
   <button class="nav-btn" data-tab="rules">Rules</button>
 </nav>
 
@@ -846,6 +870,13 @@
   </div>
 
 
+
+  <!-- SCRAMBLE TAB -->
+  <div class="tab-content" id="tab-scramble">
+    <div id="scramble-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading scramble results…</div>
+    </div>
+  </div>
 
   <!-- RULES TAB -->
   <div class="tab-content" id="tab-rules">
@@ -1082,7 +1113,7 @@ async function loadIndividual() {
   try {
     const table = await fetchSheet('individual_s1');
     const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
-    rows.sort((a,b) => parseFloat(b[6] || 0) - parseFloat(a[6] || 0));
+    rows.sort((a,b) => parseFloat(b[5] || 0) - parseFloat(a[5] || 0));
     const tbody = document.getElementById('ind-body');
     if (rows.every(r => parseFloat(r[5] || 0) === 0)) {
       tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
@@ -2196,6 +2227,220 @@ async function updateNineDropdown() {
   }
 }
 
+/* SCRAMBLE */
+async function loadScramble() {
+  const container = document.getElementById('scramble-content');
+  try {
+    const table = await fetchSheet('meadowbrook');
+    const rows = tableRows(table);
+
+    // Course info: row 1 = yardages, row 2 = par, row 3 = hole hdcps
+    // gviz row indices (0-based after header skipping): we find them by content
+    let yardRow, parRow, hdcpRow;
+    const allRows = rows;
+    for (let i = 0; i < allRows.length; i++) {
+      const r = allRows[i];
+      if (!r) continue;
+      if (r[1] === 'Blue' && r[2] && !isNaN(parseFloat(r[2]))) yardRow = r;
+      if (r[3] === 'Both' && r[4] === 'Par') parRow = r;
+      if (r[1] === 'Current Hdcp') hdcpRow = r;
+    }
+
+    const pars  = parRow  ? parRow.slice(5, 23).map(Number)  : Array(18).fill(0);
+    const hdcps = hdcpRow ? hdcpRow.slice(5, 23).map(Number) : Array(18).fill(0);
+    const yards = yardRow ? yardRow.slice(5, 23) : Array(18).fill('');
+    const parTotal = pars.reduce((a,b)=>a+b,0);
+
+    // Parse team score blocks: each block = Name row + Gross row
+    const teams = [];
+    for (let i = 0; i < allRows.length; i++) {
+      const r = allRows[i];
+      if (!r) continue;
+      if (r[0] === 'Name' && allRows[i+1] && typeof allRows[i+1][0] === 'string' && allRows[i+1][0] !== 'Gross') {
+        const nameRow  = allRows[i+1];
+        const grossRow = allRows[i+2];
+        if (!nameRow || !grossRow || grossRow[0] !== 'Gross') continue;
+        const teamName = nameRow[0];
+        const date     = nameRow[1];
+        const courseHdcp = parseFloat(nameRow[4] || 0);
+        const gross18  = grossRow.slice(5, 23).map(v => v !== null && !isNaN(parseFloat(v)) ? parseFloat(v) : null);
+        const grossTotal = parseFloat(grossRow[23]) || null;
+        const netTotal   = parseFloat(grossRow[24]) || null;
+        let dateStr = '';
+        if (date instanceof Date || (typeof date === 'string' && date.includes('Date'))) {
+          const d = new Date(date);
+          dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric', timeZone:'UTC'});
+        } else if (typeof date === 'string' && date.trim()) {
+          dateStr = date;
+        }
+        teams.push({ teamName, dateStr, courseHdcp, gross18, grossTotal, netTotal });
+      }
+    }
+
+    // Parse skins winners: rows where col[3]==='Hole' then subsequent rows col[4]=holeNum, col[5]=winner
+    const skinWinners = {}; // holeNum -> teamName (stripped of 'Gross')
+    for (let i = 0; i < allRows.length; i++) {
+      const r = allRows[i];
+      if (!r) continue;
+      if (r[3] === 'Hole') {
+        for (let j = i+1; j < allRows.length; j++) {
+          const sr = allRows[j];
+          if (!sr || sr[3] === 'Hole') break;
+          if (sr[4] !== null && !isNaN(parseFloat(sr[4]))) {
+            const holeNum = parseFloat(sr[4]);
+            const winner  = sr[5] ? String(sr[5]).replace('Gross','').trim() : null;
+            if (winner) skinWinners[holeNum] = winner;
+          }
+        }
+        break;
+      }
+    }
+
+    // Sort teams by net total ascending
+    const played = teams.filter(t => t.netTotal !== null && !isNaN(t.netTotal));
+    const notPlayed = teams.filter(t => t.netTotal === null || isNaN(t.netTotal));
+    played.sort((a,b) => a.netTotal - b.netTotal);
+    const sorted = [...played, ...notPlayed];
+
+    // Build leaderboard
+    let html = `<div class="section-title"><span class="dot"></span>Week 4 — Meadowbrook Scramble</div>`;
+    html += `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.5rem;">
+      <div class="stat-card" style="min-width:130px">
+        <div class="stat-value" style="font-size:1.5rem">${played.length > 0 ? played[0].teamName.split(' & ')[0] + ' &amp; ' + played[0].teamName.split(' & ')[1] : '—'}</div>
+        <div class="stat-label" style="color:var(--gold)">🏆 Low Net Winner</div>
+      </div>
+      <div class="stat-card" style="min-width:130px">
+        <div class="stat-value" style="font-size:1.6rem">${played.length > 0 ? played[0].netTotal.toFixed(2) : '—'}</div>
+        <div class="stat-label" style="color:var(--gold)">Net Score</div>
+      </div>
+    </div>`;
+
+    html += `<div class="table-wrap" style="margin-bottom:2rem">
+      <table id="scramble-table">
+        <thead><tr>
+          <th>#</th><th>Team</th><th>Date</th><th>Course Hdcp</th><th>Gross</th><th>Net</th><th>vs Par</th>
+        </tr></thead>
+        <tbody>`;
+    sorted.forEach((t, i) => {
+      const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const rankDisplay = i < 3 ? `<span style="font-size:1.3rem">${rankEmoji}</span>` : `<span>${i+1}</span>`;
+      const vsPar = t.grossTotal !== null ? (t.grossTotal - parTotal > 0 ? '+' : '') + (t.grossTotal - parTotal) : '—';
+      const netDisplay = t.netTotal !== null ? t.netTotal.toFixed(2) : '—';
+      const grossDisplay = t.grossTotal !== null ? t.grossTotal : '—';
+      const dateDisplay = t.dateStr || '<em style="color:var(--mid-gray)">TBD</em>';
+      const chDisplay = t.courseHdcp > 0 ? t.courseHdcp.toFixed(2) : t.courseHdcp < 0 ? t.courseHdcp.toFixed(2) : '0.00';
+      html += `<tr style="${i < 3 ? 'background:rgba(201,168,76,0.04)' : ''}">
+        <td class="${rankClass(i)}">${rankDisplay}</td>
+        <td class="team-name" style="${i < 3 ? 'font-weight:600' : ''}">${t.teamName}</td>
+        <td style="color:var(--mid-gray);font-size:12px">${dateDisplay}</td>
+        <td>${chDisplay}</td>
+        <td>${grossDisplay}</td>
+        <td><strong>${netDisplay}</strong></td>
+        <td style="color:${t.grossTotal !== null && t.grossTotal - parTotal <= 0 ? 'var(--green-mid)' : 'var(--mid-gray)'}">${vsPar}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+
+    // Skins section
+    const skinHoles = Object.keys(skinWinners).map(Number).sort((a,b)=>a-b);
+    const noSkinHoles = Array.from({length:18},(_,i)=>i+1).filter(h => !skinWinners[h]);
+    html += `<div class="section-title" style="margin-top:0"><span class="dot"></span>Skins Results`;
+    html += ` <span style="font-size:12px;font-weight:400;color:var(--mid-gray);font-style:italic;font-family:'DM Sans',sans-serif;margin-left:8px;">${skinHoles.length} skin${skinHoles.length!==1?'s':''} claimed</span></div>`;
+    html += `<div class="table-wrap" style="margin-bottom:2rem"><table>
+      <thead><tr><th>Hole</th><th>Par</th><th>Winner</th></tr></thead>
+      <tbody>`;
+    for (let h = 1; h <= 18; h++) {
+      const par = pars[h-1];
+      const winner = skinWinners[h];
+      html += `<tr class="${winner ? 'sc-skin-winner' : ''}">
+        <td style="text-align:center;font-weight:600">H${h}</td>
+        <td style="text-align:center">${par}</td>
+        <td>${winner ? `🏅 ${winner}` : '<span style="color:var(--mid-gray);font-style:italic">No skin</span>'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+
+    // Collapsible full scorecard
+    html += `<div style="margin-bottom:1rem">
+      <button class="scramble-sc-toggle" id="sc-toggle-btn" onclick="toggleScrambleSC()">
+        <span class="toggle-arrow">▶</span> Full 18-Hole Scorecard
+      </button>
+    </div>
+    <div class="scramble-sc-body" id="scramble-sc-body">`;
+
+    // Front 9
+    for (const half of ['front','back']) {
+      const start = half === 'front' ? 0 : 9;
+      const end   = half === 'front' ? 9 : 18;
+      const holeNums = Array.from({length:9},(_,i)=>start+i+1);
+      html += `<div class="sc-course-header" style="${half==='back'?'margin-top:1.5rem':''}">
+        <span class="sc-course-name">Meadowbrook — ${half==='front'?'Front':'Back'} 9</span>
+        <span class="sc-course-info">Blue Tees &nbsp;·&nbsp; Rating 70.4 &nbsp;·&nbsp; Slope 125</span>
+      </div>
+      <div class="sc-wrap"><table class="sc-table">
+        <thead><tr>
+          <th>Team</th><th>Date</th>
+          ${holeNums.map(h=>`<th>${h}</th>`).join('')}
+          <th>Total</th>
+        </tr></thead>
+        <tbody>
+        <tr class="sc-hdcp"><td>Yards</td><td></td>
+          ${holeNums.map(h=>`<td>${yards[h-1]||''}</td>`).join('')}<td>${yards.slice(start,end).reduce((a,v)=>a+(parseFloat(v)||0),0)||''}</td>
+        </tr>
+        <tr class="sc-par"><td>Par</td><td></td>
+          ${holeNums.map(h=>`<td style="font-weight:600">${pars[h-1]}</td>`).join('')}
+          <td style="font-weight:600">${pars.slice(start,end).reduce((a,b)=>a+b,0)}</td>
+        </tr>
+        <tr class="sc-hdcp"><td>Hole Hdcp</td><td></td>
+          ${holeNums.map(h=>`<td>${hdcps[h-1]}</td>`).join('')}<td></td>
+        </tr>`;
+
+      sorted.forEach((t, idx) => {
+        const scores = t.gross18.slice(start, end);
+        const halfTotal = scores.every(s=>s!==null) ? scores.reduce((a,b)=>a+b,0) : null;
+        html += `<tr class="sc-matchup">
+          <td style="font-weight:500;color:var(--green-dark)">${t.teamName}</td>
+          <td class="sc-date-col" style="color:var(--mid-gray);font-size:11px">${t.dateStr||'—'}</td>
+          ${scores.map((s,i) => {
+            const holeNum = start+i+1;
+            const par = pars[start+i];
+            const isSkinWinner = skinWinners[holeNum] === t.teamName;
+            const cellBg = isSkinWinner ? 'background:rgba(201,168,76,0.18)' : '';
+            let scoreStyle = '';
+            if (s !== null) {
+              if (s < par) scoreStyle = 'color:var(--green-mid);font-weight:700';
+              else if (s > par + 1) scoreStyle = 'color:#c0392b';
+            }
+            return `<td style="${cellBg}"><span style="${scoreStyle}">${s !== null ? s : '—'}</span>${isSkinWinner ? ' 🏅' : ''}</td>`;
+          }).join('')}
+          <td style="font-weight:600">${halfTotal !== null ? halfTotal : '—'}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    html += `</div>`; // end scramble-sc-body
+
+    html += `<div style="margin-top:10px;font-size:11px;color:var(--mid-gray);padding:0 2px;">
+      🏅 = Skins winner on that hole &nbsp;·&nbsp;
+      <span style="color:var(--green-mid);font-weight:600">Green</span> = under par &nbsp;·&nbsp;
+      <span style="color:#c0392b">Red</span> = double bogey or worse
+    </div>`;
+
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="loading-msg">Could not load scramble data.</div>';
+    console.error(e);
+  }
+}
+
+function toggleScrambleSC() {
+  const btn  = document.getElementById('sc-toggle-btn');
+  const body = document.getElementById('scramble-sc-body');
+  btn.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
 /* INIT */
 buildSchedule();
 loadStandings();
@@ -2204,6 +2449,7 @@ loadResults();
 loadDirectory();
 loadSkins();
 loadTOTW();
+loadScramble();
 loadHdcpChart();
 updateNineDropdown().then(() => loadScorecard(true));
 </script>
