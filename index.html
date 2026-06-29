@@ -2287,29 +2287,32 @@ async function loadScramble() {
       }
     }
 
-    // Parse skins winners: scan all rows for a cell === 'Hole' (the header marker),
-    // then read holeNum + winner from subsequent rows at those same column offsets.
-    // Using findIndex avoids hardcoded col offsets that break when gviz skips blank rows.
+    // Skins winners parsed from the 'Scramble Results' section of the meadowbrook sheet.
+    // gviz skips rows where only the hole-number cell is populated (no winner), so we
+    // can't rely on row streaming for no-skin holes. Instead, find the row containing
+    // 'Scramble Results' and read the winner data from the rows that DO appear in gviz
+    // (only rows with a winner value survive the blank-row skip).
     const skinWinners = {};
     for (let i = 0; i < allRows.length; i++) {
       const r = allRows[i];
       if (!r) continue;
+      // Find the skins header row — look for any cell === 'Hole' with a numeric in next cell
       const holeColIdx = r.findIndex(v => v === 'Hole');
-      if (holeColIdx >= 0 && holeColIdx <= 5) {
-        for (let j = i+1; j < allRows.length; j++) {
-          const sr = allRows[j];
-          if (!sr) break;
-          const holeVal  = sr[holeColIdx];
-          const winnerVal = sr[holeColIdx + 1];
-          if (holeVal === '' || holeVal === null || holeVal === undefined) break;
-          if (!isNaN(parseFloat(holeVal))) {
-            const holeNum = parseFloat(holeVal);
-            const winner = winnerVal ? String(winnerVal).replace('Gross','').trim() : null;
-            if (winner) skinWinners[holeNum] = winner;
-          }
+      if (holeColIdx < 0 || holeColIdx > 5) continue;
+      // Only rows WITH a winner survive gviz's blank-row skip, so just read all
+      // subsequent rows that have a numeric at holeColIdx and a string at holeColIdx+1
+      for (let j = i + 1; j < allRows.length; j++) {
+        const sr = allRows[j];
+        if (!sr) break;
+        const holeVal   = sr[holeColIdx];
+        const winnerVal = sr[holeColIdx + 1];
+        // Stop when we hit a non-numeric in the hole column (next section of sheet)
+        if (holeVal === '' || holeVal === null || holeVal === undefined) break;
+        if (!isNaN(parseFloat(holeVal)) && winnerVal && String(winnerVal).trim()) {
+          skinWinners[parseFloat(holeVal)] = String(winnerVal).replace('Gross','').trim();
         }
-        break;
       }
+      break;
     }
 
     // Sort teams by net total ascending
