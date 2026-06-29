@@ -392,21 +392,21 @@
 
   /* SCRAMBLE */
   .scramble-sc-toggle {
-    background: none;
-    border: 1px solid var(--border);
+    background: var(--green-dark);
+    border: 1px solid var(--green-dark);
     border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 12px;
+    padding: 12px 24px;
+    font-size: 14px;
     font-family: 'DM Sans', sans-serif;
     font-weight: 500;
-    color: var(--green-dark);
+    color: var(--white);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     transition: background 0.15s;
   }
-  .scramble-sc-toggle:hover { background: var(--green-pale); }
+  .scramble-sc-toggle:hover { background: var(--green-mid); }
   .scramble-sc-toggle .toggle-arrow { transition: transform 0.2s; display: inline-block; }
   .scramble-sc-toggle.open .toggle-arrow { transform: rotate(90deg); }
   .scramble-sc-body { display: none; margin-top: 1rem; }
