@@ -2381,7 +2381,7 @@ async function loadScramble() {
         <td style="text-align:center">${par}</td>
         <td style="text-align:center">${yrd}</td>
         <td style="text-align:center">${hdcp}</td>
-        <td style="text-align:left">${winner ? \`🏅 \${winner}\` : '<span style="color:var(--mid-gray);font-style:italic">No skin</span>'}</td>
+        <td style="text-align:left">${winner ? '🏅 ' + winner : '<span style="color:var(--mid-gray);font-style:italic">No skin</span>'}</td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
