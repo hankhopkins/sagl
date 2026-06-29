@@ -2342,7 +2342,7 @@ async function loadScramble() {
     html += `<div class="table-wrap" style="margin-bottom:2rem">
       <table id="scramble-table">
         <thead><tr>
-          <th>#</th><th>Team</th><th>Date</th><th>Course Hdcp</th><th>Gross</th><th>Net</th><th>vs Par</th>
+          <th>#</th><th>Team</th><th>Date</th><th>Course Hdcp</th><th>Gross</th><th>Net</th>
         </tr></thead>
         <tbody>`;
     sorted.forEach((t, i) => {
@@ -2360,7 +2360,7 @@ async function loadScramble() {
         <td>${chDisplay}</td>
         <td>${grossDisplay}</td>
         <td><strong>${netDisplay}</strong></td>
-        <td style="color:${t.grossTotal !== null && t.grossTotal - parTotal <= 0 ? 'var(--green-mid)' : 'var(--mid-gray)'}">${vsPar}</td>
+
       </tr>`;
     });
     html += `</tbody></table></div>`;
