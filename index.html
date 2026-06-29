@@ -2287,16 +2287,25 @@ async function loadScramble() {
       }
     }
 
-    // Skins winners — hardcoded from meadowbrook sheet since gviz drops sparse rows.
-    // Update this object each scramble week after reviewing the sheet.
-    const skinWinners = {
-      1:  'Gallagher & Fischer',
-      6:  'Leadley & Mullins',
-      9:  'Gallagher & Fischer',
-      10: 'Wesling & Nelson',
-      13: 'Bower & Petrovskis',
-      18: 'Leadley & Mullins'
-    };
+    // Fetch skins winners using a targeted range query (E46:F63) to avoid gviz
+    // dropping sparse rows. The range hits exactly the hole# / winner columns.
+    const skinWinners = {};
+    try {
+      const skinUrl = BASE + encodeURIComponent('meadowbrook') + '&range=E46:F63&tqx=out:json';
+      const skinRes = await fetch(skinUrl);
+      const skinText = await skinRes.text();
+      const skinJson = JSON.parse(skinText.substring(47).slice(0, -2));
+      if (skinJson.table && skinJson.table.rows) {
+        for (const row of skinJson.table.rows) {
+          if (!row.c) continue;
+          const holeCell   = row.c[0];
+          const winnerCell = row.c[1];
+          const holeNum = holeCell && holeCell.v !== null ? parseFloat(holeCell.v) : null;
+          const winner  = winnerCell && winnerCell.v ? String(winnerCell.v).replace('Gross','').trim() : null;
+          if (holeNum && winner) skinWinners[holeNum] = winner;
+        }
+      }
+    } catch(e) { console.warn('Skins fetch failed', e); }
 
     // Sort teams by net total ascending
     const played = teams.filter(t => t.netTotal !== null && !isNaN(t.netTotal));
