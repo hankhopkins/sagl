@@ -1091,9 +1091,19 @@ function teamNameFromRow(r) {
 
 // Store raw rows + current sort state per table, so columns can be re-sorted in place
 const tableState = {
-  s1:  { rows: [], sortCol: 8, sortDir: 'desc' },   // default: Pts desc
-  ind: { rows: [], sortCol: 6, sortDir: 'desc' }    // default: Pts/Match desc
+  s1:  { rows: [], sortCol: 6, sortDir: 'desc' },   // default: Pts/Match desc (th index 6)
+  ind: { rows: [], sortCol: 4, sortDir: 'desc' }    // default: Pts/Match desc (th index 4)
 };
+
+// Each row gets a fixed "place" (natural standings rank) computed once from the
+// default sort order, stored as a property on the row array itself. This way the
+// displayed rank number and medal stay attached to the TEAM/PLAYER, not to
+// whatever position they land in under the current column sort.
+function assignNaturalRanks(rows, colMap, defaultColIdx, isS1) {
+  const naturalOrder = sortRowsByCol(rows, colMap, defaultColIdx, 'desc', isS1);
+  naturalOrder.forEach((r, i) => { r._place = i + 1; });
+  return rows;
+}
 
 function renderS1Rows(rows, showMedals) {
   const tbody = document.getElementById('s1-body');
@@ -1101,15 +1111,17 @@ function renderS1Rows(rows, showMedals) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => {
-    const isTop3 = showMedals && i < 3;
-    const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+  tbody.innerHTML = rows.map((r) => {
+    const place = r._place || 0;
+    const isTop3 = showMedals && place <= 3 && place > 0;
+    const rankIdx = place - 1;
+    const rankEmoji = rankIdx === 0 ? '🥇' : rankIdx === 1 ? '🥈' : rankIdx === 2 ? '🥉' : '';
     const rankDisplay = isTop3
       ? `<span style="font-size:1.4rem;">${rankEmoji}</span>`
-      : `<span>${i+1}</span>`;
+      : `<span>${place}</span>`;
     const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
     return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
-      <td class="${isTop3 ? rankClass(i) : 'rank-cell'}">${rankDisplay}</td>
+      <td class="${isTop3 ? rankClass(rankIdx) : 'rank-cell'}">${rankDisplay}</td>
       <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
       <td>${fmtPts(r[4])}</td>
       <td>${fmtPts(r[5])}</td>
@@ -1127,8 +1139,9 @@ function renderIndRows(rows, showMedals) {
     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => {
-    const isTop3 = showMedals && i < 3;
+  tbody.innerHTML = rows.map((r) => {
+    const place = r._place || 0;
+    const isTop3 = showMedals && place <= 3 && place > 0;
     const nameStyle = isTop3 ? 'font-weight:600;' : '';
     return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
     <td class="team-name" style="${nameStyle}">${r[0]}</td>
@@ -1192,9 +1205,10 @@ function updateSortIndicators(tableId, colIdx, dir) {
 }
 
 // Medals (gold/silver/bronze) only make sense when the table is in its natural
-// "standings" order — Pts desc for teams, Pts/Match desc for individuals.
-// Any other sort column shows plain numeric rank instead.
-const S1_DEFAULT_COL  = 5; // Pts column (th index)
+// "standings" order — Pts/Match desc for both teams and individuals.
+// Any other sort column/direction shows plain numeric rank instead, but the
+// rank NUMBER itself stays fixed to each row's natural place (see _place).
+const S1_DEFAULT_COL  = 6; // Pts/Match column (th index)
 const IND_DEFAULT_COL = 4; // Pts/Match column (th index)
 
 function sortS1Table(colIdx) {
@@ -1242,6 +1256,7 @@ async function loadStandings() {
     const table = await fetchSheet('season1');
     const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
     tableState.s1.rows = rows;
+    assignNaturalRanks(rows, S1_COL_MAP, S1_DEFAULT_COL, true);
     const sorted = sortRowsByCol(rows, S1_COL_MAP, tableState.s1.sortCol, tableState.s1.sortDir, true);
     const s1ShowMedals = (tableState.s1.sortCol === S1_DEFAULT_COL && tableState.s1.sortDir === 'desc');
     renderS1Rows(sorted, s1ShowMedals);
@@ -1258,6 +1273,7 @@ async function loadIndividual() {
     const table = await fetchSheet('individual_s1');
     const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
     tableState.ind.rows = rows;
+    assignNaturalRanks(rows, IND_COL_MAP, IND_DEFAULT_COL, false);
     const sorted = sortRowsByCol(rows, IND_COL_MAP, tableState.ind.sortCol, tableState.ind.sortDir, false);
     const indShowMedals = (tableState.ind.sortCol === IND_DEFAULT_COL && tableState.ind.sortDir === 'desc');
     renderIndRows(sorted, indShowMedals);
