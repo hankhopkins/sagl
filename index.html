@@ -1232,7 +1232,7 @@ function sortIndTable(colIdx) {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
   } else {
     state.sortCol = colIdx;
-    state.sortDir = (colIdx === 0) ? 'asc' : 'desc'; // name col index 0 defaults asc
+    state.sortDir = (colIdx === 0 || [5,6,7].includes(colIdx)) ? 'asc' : 'desc'; // name + gross/net/oppnet default asc (lower is better)
   }
   const sorted = sortRowsByCol(state.rows, IND_COL_MAP, colIdx, state.sortDir, false);
   renderIndRows(sorted, true);
