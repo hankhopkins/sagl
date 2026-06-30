@@ -1095,21 +1095,21 @@ const tableState = {
   ind: { rows: [], sortCol: 6, sortDir: 'desc' }    // default: Pts/Match desc
 };
 
-function renderS1Rows(rows) {
+function renderS1Rows(rows, showMedals) {
   const tbody = document.getElementById('s1-body');
   if (rows.length === 0 || rows.every(r => parseFloat(r[8] || 0) === 0)) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r, i) => {
-    const isTop3 = i < 3;
+    const isTop3 = showMedals && i < 3;
     const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
     const rankDisplay = isTop3
       ? `<span style="font-size:1.4rem;">${rankEmoji}</span>`
       : `<span>${i+1}</span>`;
     const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
     return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
-      <td class="${rankClass(i)}">${rankDisplay}</td>
+      <td class="${isTop3 ? rankClass(i) : 'rank-cell'}">${rankDisplay}</td>
       <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
       <td>${fmtPts(r[4])}</td>
       <td>${fmtPts(r[5])}</td>
@@ -1121,14 +1121,17 @@ function renderS1Rows(rows) {
   setTimeout(autoScaleTables, 300);
 }
 
-function renderIndRows(rows) {
+function renderIndRows(rows, showMedals) {
   const tbody = document.getElementById('ind-body');
   if (rows.length === 0 || rows.every(r => parseFloat(r[5] || 0) === 0)) {
     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map((r) => `<tr>
-    <td class="team-name">${r[0]}</td>
+  tbody.innerHTML = rows.map((r, i) => {
+    const isTop3 = showMedals && i < 3;
+    const nameStyle = isTop3 ? 'font-weight:600;' : '';
+    return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
+    <td class="team-name" style="${nameStyle}">${r[0]}</td>
     <td>${fmtPts(r[2])}</td>
     <td>${fmtPts(r[3])}</td>
     <td class="standings-t-col">${fmtPts(r[4])}</td>
@@ -1140,7 +1143,8 @@ function renderIndRows(rows) {
     <td class="ind-par">${fmtAvg(r[19])}</td>
     <td class="ind-bogey">${fmtAvg(r[20])}</td>
     <td class="ind-double">${fmtAvg((parseFloat(r[21])||0) + (parseFloat(r[22])||0))}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   setTimeout(autoScaleTables, 300);
 }
 
@@ -1187,6 +1191,12 @@ function updateSortIndicators(tableId, colIdx, dir) {
   });
 }
 
+// Medals (gold/silver/bronze) only make sense when the table is in its natural
+// "standings" order — Pts desc for teams, Pts/Match desc for individuals.
+// Any other sort column shows plain numeric rank instead.
+const S1_DEFAULT_COL  = 5; // Pts column (th index)
+const IND_DEFAULT_COL = 4; // Pts/Match column (th index)
+
 function sortS1Table(colIdx) {
   const state = tableState.s1;
   if (state.sortCol === colIdx) {
@@ -1196,7 +1206,8 @@ function sortS1Table(colIdx) {
     state.sortDir = (colIdx === 1) ? 'asc' : 'desc'; // name col index 1 defaults asc
   }
   const sorted = sortRowsByCol(state.rows, S1_COL_MAP, colIdx, state.sortDir, true);
-  renderS1Rows(sorted);
+  const showMedals = (colIdx === S1_DEFAULT_COL && state.sortDir === 'desc');
+  renderS1Rows(sorted, showMedals);
   updateSortIndicators('s1-table', colIdx, state.sortDir);
 }
 
@@ -1209,7 +1220,8 @@ function sortIndTable(colIdx) {
     state.sortDir = (colIdx === 0) ? 'asc' : 'desc'; // name col index 0 defaults asc
   }
   const sorted = sortRowsByCol(state.rows, IND_COL_MAP, colIdx, state.sortDir, false);
-  renderIndRows(sorted);
+  const showMedals = (colIdx === IND_DEFAULT_COL && state.sortDir === 'desc');
+  renderIndRows(sorted, showMedals);
   updateSortIndicators('ind-table', colIdx, state.sortDir);
 }
 
@@ -1231,7 +1243,8 @@ async function loadStandings() {
     const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
     tableState.s1.rows = rows;
     const sorted = sortRowsByCol(rows, S1_COL_MAP, tableState.s1.sortCol, tableState.s1.sortDir, true);
-    renderS1Rows(sorted);
+    const s1ShowMedals = (tableState.s1.sortCol === S1_DEFAULT_COL && tableState.s1.sortDir === 'desc');
+    renderS1Rows(sorted, s1ShowMedals);
     attachSortHandlers('s1-table', sortS1Table, [0]);
     updateSortIndicators('s1-table', tableState.s1.sortCol, tableState.s1.sortDir);
   } catch(e) {
@@ -1246,7 +1259,8 @@ async function loadIndividual() {
     const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
     tableState.ind.rows = rows;
     const sorted = sortRowsByCol(rows, IND_COL_MAP, tableState.ind.sortCol, tableState.ind.sortDir, false);
-    renderIndRows(sorted);
+    const indShowMedals = (tableState.ind.sortCol === IND_DEFAULT_COL && tableState.ind.sortDir === 'desc');
+    renderIndRows(sorted, indShowMedals);
     attachSortHandlers('ind-table', sortIndTable);
     updateSortIndicators('ind-table', tableState.ind.sortCol, tableState.ind.sortDir);
   } catch(e) {
