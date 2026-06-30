@@ -207,6 +207,10 @@
   thead th:first-child { border-radius: 6px 0 0 0; text-align: left; }
   thead th:nth-child(2) { text-align: left; }
   thead th:last-child { border-radius: 0 6px 0 0; }
+  .sortable-th { cursor: pointer; user-select: none; transition: background 0.15s; white-space: nowrap; }
+  .sortable-th:hover { background: var(--green-mid); }
+  .sortable-th .sort-arrow { font-size: 9px; color: var(--gold); margin-left: 2px; }
+  .sortable-th.sorted-asc, .sortable-th.sorted-desc { background: var(--green-mid); }
   tbody tr { border-bottom: 1px solid var(--light-gray); }
   tbody tr:hover { background: var(--green-pale); }
   tbody td { padding: 10px 14px; color: var(--charcoal); text-align: center; }
@@ -1085,34 +1089,151 @@ function teamNameFromRow(r) {
   return teamNames()[parseInt(r[0])] || `Team ${r[0]}`;
 }
 
+// Store raw rows + current sort state per table, so columns can be re-sorted in place
+const tableState = {
+  s1:  { rows: [], sortCol: 8, sortDir: 'desc' },   // default: Pts desc
+  ind: { rows: [], sortCol: 6, sortDir: 'desc' }    // default: Pts/Match desc
+};
+
+function renderS1Rows(rows) {
+  const tbody = document.getElementById('s1-body');
+  if (rows.length === 0 || rows.every(r => parseFloat(r[8] || 0) === 0)) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => {
+    const isTop3 = i < 3;
+    const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const rankDisplay = isTop3
+      ? `<span style="font-size:1.4rem;">${rankEmoji}</span>`
+      : `<span>${i+1}</span>`;
+    const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
+    return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
+      <td class="${rankClass(i)}">${rankDisplay}</td>
+      <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
+      <td>${fmtPts(r[4])}</td>
+      <td>${fmtPts(r[5])}</td>
+      <td class="standings-t-col">${fmtPts(r[6])}</td>
+      <td><strong>${fmtPts(r[8])}</strong></td>
+      <td class="standings-pts-match">${fmtPts(r[9])}</td>
+    </tr>`;
+  }).join('');
+  setTimeout(autoScaleTables, 300);
+}
+
+function renderIndRows(rows) {
+  const tbody = document.getElementById('ind-body');
+  if (rows.length === 0 || rows.every(r => parseFloat(r[5] || 0) === 0)) {
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => `<tr>
+    <td class="team-name">${r[0]}</td>
+    <td>${fmtPts(r[2])}</td>
+    <td>${fmtPts(r[3])}</td>
+    <td class="standings-t-col">${fmtPts(r[4])}</td>
+    <td>${fmtPts(r[6])}</td>
+    <td class="ind-gross">${fmtPts(r[7])}</td>
+    <td class="ind-net">${fmtPts(r[8])}</td>
+    <td class="ind-oppnet">${fmtPts(r[9])}</td>
+    <td class="ind-birdie">${fmtAvg(r[18])}</td>
+    <td class="ind-par">${fmtAvg(r[19])}</td>
+    <td class="ind-bogey">${fmtAvg(r[20])}</td>
+    <td class="ind-double">${fmtAvg((parseFloat(r[21])||0) + (parseFloat(r[22])||0))}</td>
+  </tr>`).join('');
+  setTimeout(autoScaleTables, 300);
+}
+
+// Column index in the underlying row data for each visible <th> position (0-based, matches <th> order)
+// s1-table th order: #, Team, W, L, T, Pts, Pts/Match -> row indices
+const S1_COL_MAP  = [null, 'name', 4, 5, 6, 8, 9];
+// ind-table th order: Player, W, L, T, Pts/Match, Gross, Net, OppNet, Birdie, Par, Bogey, Double+
+const IND_COL_MAP = ['name', 2, 3, 4, 6, 7, 8, 9, 18, 19, 20, 'double'];
+
+function sortRowsByCol(rows, colMap, colIdx, dir, isS1) {
+  const key = colMap[colIdx];
+  const sorted = [...rows];
+  sorted.sort((a, b) => {
+    let av, bv;
+    if (key === 'name') {
+      av = (isS1 ? teamNameFromRow(a) : a[0]) || '';
+      bv = (isS1 ? teamNameFromRow(b) : b[0]) || '';
+      const cmp = av.localeCompare(bv);
+      return dir === 'asc' ? cmp : -cmp;
+    } else if (key === 'double') {
+      av = (parseFloat(a[21])||0) + (parseFloat(a[22])||0);
+      bv = (parseFloat(b[21])||0) + (parseFloat(b[22])||0);
+    } else {
+      av = parseFloat(a[key]); if (isNaN(av)) av = -Infinity;
+      bv = parseFloat(b[key]); if (isNaN(bv)) bv = -Infinity;
+    }
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return sorted;
+}
+
+function updateSortIndicators(tableId, colIdx, dir) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const ths = table.querySelectorAll('thead th');
+  ths.forEach((th, i) => {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    const label = th.dataset.label || th.textContent;
+    th.innerHTML = label;
+    if (i === colIdx) {
+      th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+      th.innerHTML = label + (dir === 'asc' ? ' <span class="sort-arrow">▲</span>' : ' <span class="sort-arrow">▼</span>');
+    }
+  });
+}
+
+function sortS1Table(colIdx) {
+  const state = tableState.s1;
+  if (state.sortCol === colIdx) {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortCol = colIdx;
+    state.sortDir = (colIdx === 1) ? 'asc' : 'desc'; // name col index 1 defaults asc
+  }
+  const sorted = sortRowsByCol(state.rows, S1_COL_MAP, colIdx, state.sortDir, true);
+  renderS1Rows(sorted);
+  updateSortIndicators('s1-table', colIdx, state.sortDir);
+}
+
+function sortIndTable(colIdx) {
+  const state = tableState.ind;
+  if (state.sortCol === colIdx) {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortCol = colIdx;
+    state.sortDir = (colIdx === 0) ? 'asc' : 'desc'; // name col index 0 defaults asc
+  }
+  const sorted = sortRowsByCol(state.rows, IND_COL_MAP, colIdx, state.sortDir, false);
+  renderIndRows(sorted);
+  updateSortIndicators('ind-table', colIdx, state.sortDir);
+}
+
+function attachSortHandlers(tableId, sortFn, skipCols) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const ths = table.querySelectorAll('thead th');
+  ths.forEach((th, i) => {
+    if (skipCols && skipCols.includes(i)) return;
+    th.dataset.label = th.textContent;
+    th.classList.add('sortable-th');
+    th.addEventListener('click', () => sortFn(i));
+  });
+}
+
 async function loadStandings() {
   try {
     const table = await fetchSheet('season1');
     const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
-    rows.sort((a,b) => parseFloat(b[8] || 0) - parseFloat(a[8] || 0));
-    const tbody = document.getElementById('s1-body');
-    if (rows.every(r => parseFloat(r[8] || 0) === 0)) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map((r, i) => {
-      const isTop3 = i < 3;
-      const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-      const rankDisplay = isTop3
-        ? `<span style="font-size:1.4rem;">${rankEmoji}</span>`
-        : `<span>${i+1}</span>`;
-      const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
-      return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
-        <td class="${rankClass(i)}">${rankDisplay}</td>
-        <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
-        <td>${fmtPts(r[4])}</td>
-        <td>${fmtPts(r[5])}</td>
-        <td class="standings-t-col">${fmtPts(r[6])}</td>
-        <td><strong>${fmtPts(r[8])}</strong></td>
-        <td class="standings-pts-match">${fmtPts(r[9])}</td>
-      </tr>`;
-    }).join('');
-    setTimeout(autoScaleTables, 300);
+    tableState.s1.rows = rows;
+    const sorted = sortRowsByCol(rows, S1_COL_MAP, tableState.s1.sortCol, tableState.s1.sortDir, true);
+    renderS1Rows(sorted);
+    attachSortHandlers('s1-table', sortS1Table, [0]);
+    updateSortIndicators('s1-table', tableState.s1.sortCol, tableState.s1.sortDir);
   } catch(e) {
     document.getElementById('s1-body').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
   }
@@ -1123,27 +1244,11 @@ async function loadIndividual() {
   try {
     const table = await fetchSheet('individual_s1');
     const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
-    rows.sort((a,b) => parseFloat(b[5] || 0) - parseFloat(a[5] || 0));
-    const tbody = document.getElementById('ind-body');
-    if (rows.every(r => parseFloat(r[5] || 0) === 0)) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map((r) => `<tr>
-      <td class="team-name">${r[0]}</td>
-      <td>${fmtPts(r[2])}</td>
-      <td>${fmtPts(r[3])}</td>
-      <td class="standings-t-col">${fmtPts(r[4])}</td>
-      <td>${fmtPts(r[6])}</td>
-      <td class="ind-gross">${fmtPts(r[7])}</td>
-      <td class="ind-net">${fmtPts(r[8])}</td>
-      <td class="ind-oppnet">${fmtPts(r[9])}</td>
-      <td class="ind-birdie">${fmtAvg(r[18])}</td>
-      <td class="ind-par">${fmtAvg(r[19])}</td>
-      <td class="ind-bogey">${fmtAvg(r[20])}</td>
-      <td class="ind-double">${fmtAvg((parseFloat(r[21])||0) + (parseFloat(r[22])||0))}</td>
-    </tr>`).join('');
-    setTimeout(autoScaleTables, 300);
+    tableState.ind.rows = rows;
+    const sorted = sortRowsByCol(rows, IND_COL_MAP, tableState.ind.sortCol, tableState.ind.sortDir, false);
+    renderIndRows(sorted);
+    attachSortHandlers('ind-table', sortIndTable);
+    updateSortIndicators('ind-table', tableState.ind.sortCol, tableState.ind.sortDir);
   } catch(e) {
     document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
   }
