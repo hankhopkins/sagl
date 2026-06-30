@@ -1220,8 +1220,9 @@ function sortS1Table(colIdx) {
     state.sortDir = (colIdx === 1) ? 'asc' : 'desc'; // name col index 1 defaults asc
   }
   const sorted = sortRowsByCol(state.rows, S1_COL_MAP, colIdx, state.sortDir, true);
-  const showMedals = (colIdx === S1_DEFAULT_COL && state.sortDir === 'desc');
-  renderS1Rows(sorted, showMedals);
+  // Medals are tied to each team's fixed natural rank (_place), not the current
+  // sort column, so they stay visible no matter how the table is sorted.
+  renderS1Rows(sorted, true);
   updateSortIndicators('s1-table', colIdx, state.sortDir);
 }
 
@@ -1234,8 +1235,7 @@ function sortIndTable(colIdx) {
     state.sortDir = (colIdx === 0) ? 'asc' : 'desc'; // name col index 0 defaults asc
   }
   const sorted = sortRowsByCol(state.rows, IND_COL_MAP, colIdx, state.sortDir, false);
-  const showMedals = (colIdx === IND_DEFAULT_COL && state.sortDir === 'desc');
-  renderIndRows(sorted, showMedals);
+  renderIndRows(sorted, true);
   updateSortIndicators('ind-table', colIdx, state.sortDir);
 }
 
@@ -1258,8 +1258,7 @@ async function loadStandings() {
     tableState.s1.rows = rows;
     assignNaturalRanks(rows, S1_COL_MAP, S1_DEFAULT_COL, true);
     const sorted = sortRowsByCol(rows, S1_COL_MAP, tableState.s1.sortCol, tableState.s1.sortDir, true);
-    const s1ShowMedals = (tableState.s1.sortCol === S1_DEFAULT_COL && tableState.s1.sortDir === 'desc');
-    renderS1Rows(sorted, s1ShowMedals);
+    renderS1Rows(sorted, true);
     attachSortHandlers('s1-table', sortS1Table, [0]);
     updateSortIndicators('s1-table', tableState.s1.sortCol, tableState.s1.sortDir);
   } catch(e) {
@@ -1275,8 +1274,7 @@ async function loadIndividual() {
     tableState.ind.rows = rows;
     assignNaturalRanks(rows, IND_COL_MAP, IND_DEFAULT_COL, false);
     const sorted = sortRowsByCol(rows, IND_COL_MAP, tableState.ind.sortCol, tableState.ind.sortDir, false);
-    const indShowMedals = (tableState.ind.sortCol === IND_DEFAULT_COL && tableState.ind.sortDir === 'desc');
-    renderIndRows(sorted, indShowMedals);
+    renderIndRows(sorted, true);
     attachSortHandlers('ind-table', sortIndTable);
     updateSortIndicators('ind-table', tableState.ind.sortCol, tableState.ind.sortDir);
   } catch(e) {
