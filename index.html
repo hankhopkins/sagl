@@ -417,6 +417,87 @@
   .scramble-sc-body.open { display: block; }
   .sc-skin-winner { background: rgba(201,168,76,0.15); font-weight: 600; color: var(--green-dark); }
 
+  /* HISTORY & PROFILES */
+  .hist-champ-banner {
+    background: linear-gradient(135deg, var(--green-dark), var(--green-mid));
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.5rem;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .hist-champ-banner .trophy { font-size: 2.2rem; }
+  .hist-champ-title {
+    font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--gold-light); margin-bottom: 2px;
+  }
+  .hist-champ-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem; font-weight: 700; color: var(--white);
+  }
+  .bracket-round { margin-bottom: 1.2rem; }
+  .bracket-round-name {
+    font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--green-dark); margin-bottom: 8px;
+  }
+  .bracket-match {
+    background: var(--white); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 6px; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .bracket-w { font-weight: 600; color: var(--green-dark); }
+  .bracket-l { color: var(--mid-gray); }
+  .bracket-meta { font-size: 11px; color: var(--mid-gray); font-style: italic; }
+  .courses-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2rem; }
+  .course-chip {
+    background: var(--green-pale); color: var(--green-dark);
+    border-radius: 100px; padding: 5px 14px; font-size: 12px; font-weight: 500;
+  }
+  .profile-hero {
+    background: var(--green-dark); border-radius: 12px; border-bottom: 3px solid var(--gold);
+    padding: 1.6rem; margin-bottom: 1.5rem; color: var(--white);
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  }
+  .profile-avatar-lg {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--gold); color: var(--green-dark);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; font-family: 'Playfair Display', serif;
+    flex-shrink: 0;
+  }
+  .profile-name {
+    font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700;
+  }
+  .profile-sub { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+  .profile-hero-stats { display: flex; gap: 22px; margin-left: auto; flex-wrap: wrap; }
+  .phs { text-align: center; }
+  .phs-val { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--gold-light); }
+  .phs-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+  .matchup-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 2rem; }
+  .mc-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+  .mc-card.easy { border-top: 3px solid var(--green-mid); }
+  .mc-card.hard { border-top: 3px solid #c0392b; }
+  .mc-label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mid-gray); margin-bottom: 4px; }
+  .mc-opp { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+  .mc-rec { font-size: 13px; color: var(--charcoal); margin-bottom: 6px; }
+  .mc-margin { font-size: 12px; color: var(--mid-gray); }
+  .mc-mentions { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--light-gray); font-size: 12px; color: var(--mid-gray); line-height: 1.7; }
+  .fun-fact {
+    background: var(--gold-pale); border: 1px solid var(--gold); border-radius: 10px;
+    padding: 1rem 1.2rem; margin-bottom: 2rem; font-size: 14px; color: var(--charcoal);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .fun-fact .ff-icon { font-size: 1.4rem; }
+  .best-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+  .best-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+  .best-lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--mid-gray); margin-bottom: 4px; }
+  .best-val { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; color: var(--green-dark); }
+  .best-ctx { font-size: 11px; color: var(--mid-gray); margin-top: 4px; line-height: 1.5; }
+
   /* LOADING */
   .loading-msg {
     text-align: center;
@@ -715,6 +796,8 @@
   <button class="nav-btn" data-tab="scramble">Scramble</button>
   <button class="nav-btn" data-tab="skins">Skins</button>
   <button class="nav-btn" data-tab="totw">TOTW</button>
+  <button class="nav-btn" data-tab="history">History</button>
+  <button class="nav-btn" data-tab="profiles">Profiles</button>
   <button class="nav-btn" data-tab="rules">Rules</button>
 </nav>
 
@@ -901,6 +984,40 @@
     </div>
   </div>
 
+  <!-- HISTORY TAB -->
+  <div class="tab-content" id="tab-history">
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Season</label>
+        <select id="hist-year" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option value="alltime">All-Time</option>
+          <option value="2026">2026 (current)</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+        </select>
+      </div>
+    </div>
+    <div id="history-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading history…</div>
+    </div>
+  </div>
+
+  <!-- PROFILES TAB -->
+  <div class="tab-content" id="tab-profiles">
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; color:var(--mid-gray); display:block; margin-bottom:4px;">Player</label>
+        <select id="profile-player" style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--charcoal); font-family:inherit; cursor:pointer;">
+          <option>Loading…</option>
+        </select>
+      </div>
+    </div>
+    <div id="profile-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading profiles…</div>
+    </div>
+  </div>
+
   <!-- RULES TAB -->
   <div class="tab-content" id="tab-rules">
 
@@ -1080,6 +1197,8 @@ function loadTab(tab) {
   if (tab === 'players')    { loadDirectory(); loadHdcpChart(); }
   if (tab === 'skins')      loadSkins();
   if (tab === 'totw')       loadTOTW();
+  if (tab === 'history')    loadHistory();
+  if (tab === 'profiles')   loadProfiles();
   if (tab === 'scramble')   loadScramble();
 }
 
@@ -2631,6 +2750,412 @@ function toggleScrambleSC() {
   const body = document.getElementById('scramble-sc-body');
   btn.classList.toggle('open');
   body.classList.toggle('open');
+}
+
+
+/* ===== HISTORY & PROFILES ===== */
+let HISTORY = null;
+
+async function fetchHistory() {
+  if (HISTORY) return HISTORY;
+  const res = await fetch('data/history.json');
+  HISTORY = await res.json();
+  return HISTORY;
+}
+
+function fmtRec(w, l, t) { return `${w ?? 0}–${l ?? 0}–${t ?? 0}`; }
+function fmt1(v) { return v === null || v === undefined ? '—' : (typeof v === 'number' && v % 1 !== 0 ? v.toFixed(1) : v); }
+function fmt2(v) { return v === null || v === undefined ? '—' : (typeof v === 'number' ? v.toFixed(2) : v); }
+
+async function loadHistory() {
+  const container = document.getElementById('history-content');
+  try {
+    const h = await fetchHistory();
+    renderHistory(document.getElementById('hist-year').value, h);
+  } catch(e) {
+    container.innerHTML = '<div class="loading-msg">Could not load history data.</div>';
+    console.error(e);
+  }
+}
+
+document.getElementById('hist-year').addEventListener('change', () => {
+  if (HISTORY) renderHistory(document.getElementById('hist-year').value, HISTORY);
+});
+
+function renderHistory(sel, h) {
+  const container = document.getElementById('history-content');
+  if (sel === 'alltime') { container.innerHTML = renderAllTime(h); return; }
+  const y = h.years[sel];
+  if (!y) { container.innerHTML = '<div class="loading-msg">No data for this season.</div>'; return; }
+  let html = '';
+
+  // Champion banner
+  if (y.playoffs) {
+    html += `<div class="hist-champ-banner">
+      <div class="trophy">🏆</div>
+      <div>
+        <div class="hist-champ-title">${sel} League Champions</div>
+        <div class="hist-champ-name">${y.playoffs.champion}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;">Runners-up: ${y.playoffs.runnerUp}</div>
+      </div>
+    </div>`;
+  } else if (y.inProgress) {
+    html += `<div class="hist-champ-banner" style="background:var(--gold);border-color:var(--green-dark);">
+      <div class="trophy">⛳</div>
+      <div>
+        <div class="hist-champ-title" style="color:rgba(26,58,42,0.7);">${sel} Season</div>
+        <div class="hist-champ-name" style="color:var(--green-dark);">In Progress</div>
+      </div>
+    </div>`;
+  }
+
+  // Final standings (combined) or current season standings
+  const standings = (y.combined && y.combined.length) ? y.combined : null;
+  if (standings) {
+    html += `<div class="section-title"><span class="dot"></span>Final Standings</div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Seed</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Match Pts</th><th>Scramble</th><th>Total</th><th>Pts/Match</th><th>Note</th>
+    </tr></thead><tbody>`;
+    standings.forEach((r, i) => {
+      const seed = r.seed && !isNaN(parseFloat(r.seed)) ? parseInt(r.seed) : (r.seed || '—');
+      html += `<tr>
+        <td style="text-align:center;font-weight:600;color:var(--green-mid)">${seed}</td>
+        <td class="team-name">${lastName(r.p1)} & ${lastName(r.p2)}</td>
+        <td>${fmt1(r.w)}</td><td>${fmt1(r.l)}</td><td>${fmt1(r.t)}</td>
+        <td>${fmt1(r.matchPts)}</td><td>${fmt1(r.scramblePts)}</td>
+        <td><strong>${fmt1(r.totalPts)}</strong></td><td>${fmt2(r.ptsMatch)}</td>
+        <td style="font-size:11px;color:var(--mid-gray);text-align:left">${r.note || ''}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  // Season 1 / Season 2 standings side note
+  const seasonTables = [['Spring (Season 1)', y.s1], ['Summer (Season 2)', y.s2]];
+  for (const [label, rows] of seasonTables) {
+    if (!rows || !rows.length) continue;
+    const sorted = [...rows].sort((a,b) => (b.ptsMatch||0)-(a.ptsMatch||0));
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>${label}</div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th>
+    </tr></thead><tbody>`;
+    sorted.forEach((r, i) => {
+      html += `<tr>
+        <td style="text-align:center;color:var(--green-mid);font-weight:600">${i+1}</td>
+        <td class="team-name">${lastName(r.p1)} & ${lastName(r.p2)}</td>
+        <td>${fmt1(r.w)}</td><td>${fmt1(r.l)}</td><td>${fmt1(r.t)}</td>
+        <td><strong>${fmt1(r.pts)}</strong></td><td>${fmt2(r.ptsMatch)}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  // Playoff bracket
+  if (y.playoffs && y.playoffs.rounds) {
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Playoff Results</div>`;
+    for (const rd of y.playoffs.rounds) {
+      html += `<div class="bracket-round"><div class="bracket-round-name">${rd.name}</div>`;
+      for (const m of rd.matches) {
+        html += `<div class="bracket-match">
+          <span><span class="bracket-w">${m.w}</span> <span style="color:var(--mid-gray);font-size:11px">def.</span> <span class="bracket-l">${m.l}</span></span>
+          <span class="bracket-meta">${m.score}${m.courses ? ' · ' + m.courses : ''}${m.note ? ' · ' + m.note : ''}</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+  }
+
+  // Individual results
+  if (y.individual && y.individual.length) {
+    const ind = [...y.individual].sort((a,b) => (b.ptsMatch||0)-(a.ptsMatch||0));
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Individual Results</div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>#</th><th>Player</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Eagles</th><th>Birdies</th>
+    </tr></thead><tbody>`;
+    ind.forEach((p, i) => {
+      html += `<tr>
+        <td style="text-align:center;color:var(--green-mid);font-weight:600">${i+1}</td>
+        <td class="team-name">${p.name}</td>
+        <td>${fmt1(p.w)}</td><td>${fmt1(p.l)}</td><td>${fmt1(p.t)}</td>
+        <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
+        <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td>
+        <td>${fmt1(p.eagles)}</td><td>${fmt1(p.birdies)}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  // Matchup results by week
+  const indivMatchups = (y.matchups || []).filter(m => !m.scramble);
+  if (indivMatchups.length) {
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Individual Matchups</div>`;
+    const byWeek = {};
+    for (const m of indivMatchups) {
+      const key = `${m.season}-${m.week}`;
+      (byWeek[key] = byWeek[key] || { season: m.season, week: m.week, course: m.course, list: [] }).list.push(m);
+    }
+    for (const wk of Object.values(byWeek)) {
+      html += `<div style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--green-dark);margin:14px 0 6px;">Week ${wk.week} — ${wk.course}</div>
+      <div class="table-wrap"><table style="max-width:640px"><tbody>`;
+      for (const m of wk.list) {
+        const p1win = m.p1pts > m.p2pts, p2win = m.p2pts > m.p1pts;
+        html += `<tr>
+          <td style="text-align:right;width:32%;font-weight:${p1win?'600':'400'};color:${p1win?'var(--green-dark)':'var(--charcoal)'}">${m.p1}</td>
+          <td style="text-align:center;width:16%;white-space:nowrap"><strong>${fmt1(m.p1pts)}</strong> <span style="color:var(--mid-gray);font-size:11px">–</span> <strong>${fmt1(m.p2pts)}</strong></td>
+          <td style="text-align:left;width:32%;font-weight:${p2win?'600':'400'};color:${p2win?'var(--green-dark)':'var(--charcoal)'}">${m.p2}</td>
+          <td style="text-align:center;font-size:11px;color:var(--mid-gray);white-space:nowrap">${fmt1(m.p1gross)}/${fmt1(m.p1net)} · ${fmt1(m.p2gross)}/${fmt1(m.p2net)}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+  }
+
+  // Courses
+  if (y.courses && y.courses.length) {
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Courses Played</div>
+    <div class="courses-chips">${y.courses.map(c => `<span class="course-chip">⛳ ${c}</span>`).join('')}</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function renderAllTime(h) {
+  let html = '';
+  // Champions timeline
+  html += `<div class="section-title"><span class="dot"></span>League Champions</div>
+  <div class="matchup-cards" style="margin-bottom:2rem">`;
+  for (const [yr, y] of Object.entries(h.years)) {
+    if (y.playoffs) {
+      html += `<div class="mc-card" style="border-top:3px solid var(--gold)">
+        <div class="mc-label">${yr}</div>
+        <div class="mc-opp">🏆 ${y.playoffs.champion}</div>
+        <div class="mc-margin">def. ${y.playoffs.runnerUp}</div>
+      </div>`;
+    }
+  }
+  html += `</div>`;
+
+  // All-time player table
+  const players = h.allTime.players.filter(p => p.matches >= 1);
+  html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
+  <div class="table-wrap"><table><thead><tr>
+    <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Eagles</th>
+  </tr></thead><tbody>`;
+  players.forEach((p, i) => {
+    html += `<tr>
+      <td style="text-align:center;color:var(--green-mid);font-weight:600">${i+1}</td>
+      <td class="team-name">${p.name}</td>
+      <td style="font-size:11px;color:var(--mid-gray)">${p.seasons.join(', ')}</td>
+      <td>${p.matches}</td><td>${p.w}</td><td>${p.l}</td><td>${p.t}</td>
+      <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
+      <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${p.eagles || 0}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  // Most-played rivalries
+  const rivalries = h.allTime.h2h.filter(g => g.meetings >= 3).slice(0, 15);
+  if (rivalries.length) {
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Biggest Rivalries (3+ Meetings)</div>
+    <div class="table-wrap"><table style="max-width:680px"><thead><tr>
+      <th>Matchup</th><th>Meetings</th><th>Record</th><th>Avg Margin</th>
+    </tr></thead><tbody>`;
+    for (const g of rivalries) {
+      const leader = g.aAvgMargin > 0 ? g.a : g.aAvgMargin < 0 ? g.b : null;
+      html += `<tr>
+        <td class="team-name">${g.a} vs ${g.b}</td>
+        <td style="text-align:center">${g.meetings}</td>
+        <td style="text-align:center">${g.aW}–${g.bW}–${g.t}</td>
+        <td style="text-align:center;font-size:12px">${leader ? `${lastName(leader)} +${Math.abs(g.aAvgMargin).toFixed(1)}` : 'Even'}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  // All courses ever played
+  const allCourses = new Set();
+  for (const y of Object.values(h.years)) (y.courses || []).forEach(c => allCourses.add(c));
+  html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Every Course in League History</div>
+  <div class="courses-chips">${[...allCourses].sort().map(c => `<span class="course-chip">⛳ ${c}</span>`).join('')}</div>`;
+
+  return html;
+}
+
+/* PROFILES */
+async function loadProfiles() {
+  const sel = document.getElementById('profile-player');
+  try {
+    const h = await fetchHistory();
+    // 2026 roster first, then past players alphabetically
+    const current = new Set();
+    (h.years['2026'] ? h.years['2026'].individual : []).forEach(p => current.add(p.name));
+    const names = Object.keys(h.profiles).sort();
+    const currentNames = names.filter(n => current.has(n));
+    const pastNames = names.filter(n => !current.has(n));
+    sel.innerHTML = `<optgroup label="2026 Roster">${currentNames.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>
+      <optgroup label="League Alumni">${pastNames.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>`;
+    renderProfile(sel.value, h);
+  } catch(e) {
+    document.getElementById('profile-content').innerHTML = '<div class="loading-msg">Could not load profile data.</div>';
+    console.error(e);
+  }
+}
+
+document.getElementById('profile-player').addEventListener('change', () => {
+  if (HISTORY) renderProfile(document.getElementById('profile-player').value, HISTORY);
+});
+
+function renderProfile(name, h) {
+  const container = document.getElementById('profile-content');
+  const p = h.profiles[name];
+  if (!p) { container.innerHTML = '<div class="loading-msg">No profile found.</div>'; return; }
+  const c = p.career || {};
+  let html = '';
+
+  // Hero
+  const partnerYears = Object.entries(p.partners || {}).map(([y, pt]) => `${y}: ${lastName(pt)}`).join(' · ');
+  html += `<div class="profile-hero">
+    <div class="profile-avatar-lg">${initials(name)}</div>
+    <div>
+      <div class="profile-name">${name}</div>
+      <div class="profile-sub">${(c.seasons || []).length} season${(c.seasons||[]).length !== 1 ? 's' : ''} · Partners — ${partnerYears || '—'}</div>
+    </div>
+    <div class="profile-hero-stats">
+      <div class="phs"><div class="phs-val">${fmtRec(c.w, c.l, c.t)}</div><div class="phs-lbl">Career W–L–T</div></div>
+      <div class="phs"><div class="phs-val">${fmt2(c.ptsMatch)}</div><div class="phs-lbl">Pts/Match</div></div>
+      <div class="phs"><div class="phs-val">${fmt1(c.grossAvg)}</div><div class="phs-lbl">Gross Avg</div></div>
+      <div class="phs"><div class="phs-val">${fmt1(c.netAvg)}</div><div class="phs-lbl">Net Avg</div></div>
+    </div>
+  </div>`;
+
+  // Fun fact
+  if (p.funFact) {
+    html += `<div class="fun-fact"><span class="ff-icon">💡</span><span>${p.funFact}</span></div>`;
+  }
+
+  // Season by season
+  const years = Object.keys(p.yearly || {}).sort();
+  if (years.length) {
+    html += `<div class="section-title"><span class="dot"></span>Season by Season</div>
+    <div class="table-wrap"><table style="max-width:760px"><thead><tr>
+      <th>Year</th><th>Partner</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th>
+    </tr></thead><tbody>`;
+    for (const yr of years) {
+      const s = p.yearly[yr];
+      html += `<tr${yr === '2026' ? ' style="background:rgba(201,168,76,0.06)"' : ''}>
+        <td style="font-weight:600;color:var(--green-dark)">${yr}${yr === '2026' ? ' <span style="font-size:10px;color:var(--gold);font-style:italic">current</span>' : ''}</td>
+        <td>${lastName((p.partners || {})[yr] || '') || '—'}</td>
+        <td>${fmt1(s.w)}</td><td>${fmt1(s.l)}</td><td>${fmt1(s.t)}</td>
+        <td><strong>${fmt1(s.pts)}</strong></td><td>${fmt2(s.ptsMatch)}</td>
+        <td>${fmt1(s.grossAvg)}</td><td>${fmt1(s.netAvg)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  // Easiest / Hardest matchups
+  if (p.easiest || p.hardest) {
+    html += `<div class="section-title" style="margin-top:1.5rem"><span class="dot"></span>Matchup Report</div>
+    <div class="matchup-cards">`;
+    if (p.easiest) {
+      const e = p.easiest;
+      html += `<div class="mc-card easy">
+        <div class="mc-label">😎 Easiest Matchup</div>
+        <div class="mc-opp">${e.opp}</div>
+        <div class="mc-rec">${fmtRec(e.w, e.l, e.t)} in ${e.meetings} meeting${e.meetings !== 1 ? 's' : ''}</div>
+        <div class="mc-margin">Avg margin: <strong style="color:var(--green-mid)">+${e.avgMargin.toFixed(1)} pts</strong></div>
+        ${(p.easyMentions || []).length ? `<div class="mc-mentions"><strong>Honorable mentions:</strong><br>${p.easyMentions.filter(m => m.avgMargin > 0).map(m => `${m.opp} (+${m.avgMargin.toFixed(1)}, ${m.meetings}x)`).join('<br>') || '—'}</div>` : ''}
+      </div>`;
+    }
+    if (p.hardest) {
+      const hd = p.hardest;
+      html += `<div class="mc-card hard">
+        <div class="mc-label">😤 Hardest Matchup</div>
+        <div class="mc-opp">${hd.opp}</div>
+        <div class="mc-rec">${fmtRec(hd.w, hd.l, hd.t)} in ${hd.meetings} meeting${hd.meetings !== 1 ? 's' : ''}</div>
+        <div class="mc-margin">Avg margin: <strong style="color:#c0392b">${hd.avgMargin.toFixed(1)} pts</strong></div>
+        ${(p.hardMentions || []).length ? `<div class="mc-mentions"><strong>Also tough:</strong><br>${p.hardMentions.filter(m => m.avgMargin < 0).map(m => `${m.opp} (${m.avgMargin.toFixed(1)}, ${m.meetings}x)`).join('<br>') || '—'}</div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Course performance
+  if (p.bestCourse || p.worstCourse) {
+    html += `<div class="section-title" style="margin-top:0"><span class="dot"></span>Course Report</div>
+    <div class="matchup-cards">`;
+    if (p.bestCourse) {
+      const b = p.bestCourse;
+      html += `<div class="mc-card easy">
+        <div class="mc-label">🏌️ Best Course</div>
+        <div class="mc-opp">${b.course}</div>
+        <div class="mc-rec">${b.avgPts.toFixed(1)} pts/match over ${b.rounds} round${b.rounds !== 1 ? 's' : ''}</div>
+        <div class="mc-margin">Avg gross ${fmt1(b.avgGross)} · Avg net ${fmt1(b.avgNet)}</div>
+      </div>`;
+    }
+    if (p.worstCourse) {
+      const w = p.worstCourse;
+      html += `<div class="mc-card hard">
+        <div class="mc-label">😖 House of Horrors</div>
+        <div class="mc-opp">${w.course}</div>
+        <div class="mc-rec">${w.avgPts.toFixed(1)} pts/match over ${w.rounds} round${w.rounds !== 1 ? 's' : ''}</div>
+        <div class="mc-margin">Avg gross ${fmt1(w.avgGross)} · Avg net ${fmt1(w.avgNet)}</div>
+      </div>`;
+    }
+    html += `</div>`;
+    // full course table
+    if (p.courses && p.courses.length) {
+      html += `<div class="table-wrap" style="margin-bottom:2rem"><table style="max-width:640px"><thead><tr>
+        <th>Course</th><th>Rounds</th><th>Avg Pts</th><th>Avg Gross</th><th>Avg Net</th>
+      </tr></thead><tbody>`;
+      for (const cst of p.courses) {
+        html += `<tr>
+          <td class="team-name">${cst.course}</td>
+          <td style="text-align:center">${cst.rounds}</td>
+          <td style="text-align:center"><strong>${fmt2(cst.avgPts)}</strong></td>
+          <td style="text-align:center">${fmt1(cst.avgGross)}</td>
+          <td style="text-align:center">${fmt1(cst.avgNet)}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+  }
+
+  // Personal bests
+  html += `<div class="section-title" style="margin-top:0"><span class="dot"></span>Personal Records</div>
+  <div class="best-grid">`;
+  const bestCards = [
+    ['🔥 Best Gross', p.bestGross, v => v],
+    ['🎯 Best Net', p.bestNet, v => v],
+    ['💪 Most Points in a Match', p.bestPts, v => v],
+  ];
+  for (const [lbl, rec, fmt] of bestCards) {
+    if (!rec) continue;
+    html += `<div class="best-card">
+      <div class="best-lbl">${lbl}</div>
+      <div class="best-val">${fmt1(rec.value)}</div>
+      <div class="best-ctx">${rec.course}, ${rec.year}${rec.date ? ' · ' + rec.date : ''}<br>vs ${rec.opp}</div>
+    </div>`;
+  }
+  if (p.bestHole) {
+    const bh = p.bestHole;
+    html += `<div class="best-card">
+      <div class="best-lbl">⭐ Best Single Hole</div>
+      <div class="best-val">${bh.score} <span style="font-size:.85rem;color:var(--green-mid)">${bh.label || ''}</span></div>
+      <div class="best-ctx">Hole ${bh.hole} (par ${bh.par}) — ${bh.course}, ${bh.year}${bh.date ? ' · ' + bh.date : ''}</div>
+    </div>`;
+  }
+  if (p.worstHole) {
+    const wh = p.worstHole;
+    html += `<div class="best-card" style="border-top:3px solid #c0392b">
+      <div class="best-lbl">💀 Worst Single Hole</div>
+      <div class="best-val">${wh.score} <span style="font-size:.85rem;color:#c0392b">+${wh.vsPar}</span></div>
+      <div class="best-ctx">Hole ${wh.hole} (par ${wh.par}) — ${wh.course}, ${wh.year}${wh.date ? ' · ' + wh.date : ''}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  container.innerHTML = html;
 }
 
 /* INIT */
