@@ -1420,6 +1420,7 @@ async function loadSkins() {
   try {
     const table = await fetchSheet('skins');
     const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
+    rows.sort((a,b) => (parseFloat(b[4]) || 0) - (parseFloat(a[4]) || 0));
     const tbody = document.getElementById('skins-body');
     if (rows.every(r => parseFloat(r[2] || 0) === 0 && parseFloat(r[1] || 0) === 0)) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No skins claimed yet — check back after Week 1!</td></tr>';
