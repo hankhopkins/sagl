@@ -2784,7 +2784,11 @@ document.getElementById('hist-year').addEventListener('change', () => {
 
 function renderHistory(sel, h) {
   const container = document.getElementById('history-content');
-  if (sel === 'alltime') { container.innerHTML = renderAllTime(h); return; }
+  if (sel === 'alltime') {
+    container.innerHTML = renderAllTime(h);
+    attachAllTimeSort(h);
+    return;
+  }
   const y = h.years[sel];
   if (!y) { container.innerHTML = '<div class="loading-msg">No data for this season.</div>'; return; }
   let html = '';
@@ -2935,23 +2939,11 @@ function renderAllTime(h) {
   }
   html += `</div>`;
 
-  // All-time player table
-  const players = h.allTime.players.filter(p => p.matches >= 1);
+  // All-time player table (sortable — rows rendered by renderAllTimeRows)
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
-  <div class="table-wrap"><table><thead><tr>
+  <div class="table-wrap"><table id="alltime-table"><thead><tr>
     <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Eagles</th>
-  </tr></thead><tbody>`;
-  players.forEach((p, i) => {
-    html += `<tr>
-      <td style="text-align:center;color:var(--green-mid);font-weight:600">${i+1}</td>
-      <td class="team-name">${p.name}</td>
-      <td style="font-size:11px;color:var(--mid-gray)">${p.seasons.join(', ')}</td>
-      <td>${p.matches}</td><td>${p.w}</td><td>${p.l}</td><td>${p.t}</td>
-      <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
-      <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${p.eagles || 0}</td>
-    </tr>`;
-  });
-  html += `</tbody></table></div>`;
+  </tr></thead><tbody id="alltime-body"></tbody></table></div>`;
 
   // Most-played rivalries
   const rivalries = h.allTime.h2h.filter(g => g.meetings >= 3).slice(0, 15);
@@ -2979,6 +2971,69 @@ function renderAllTime(h) {
   <div class="courses-chips">${[...allCourses].sort().map(c => `<span class="course-chip">⛳ ${c}</span>`).join('')}</div>`;
 
   return html;
+}
+
+/* ALL-TIME TABLE SORTING */
+// th order: #(0) Player(1) Seasons(2) Matches(3) W(4) L(5) T(6) Pts(7) Pts/Match(8) Gross(9) Net(10) Eagles(11)
+const ALLTIME_KEYS = [null, 'name', 'seasonsCount', 'matches', 'w', 'l', 't', 'pts', 'ptsMatch', 'grossAvg', 'netAvg', 'eagles'];
+const allTimeState = { sortCol: 3, sortDir: 'desc' }; // default: Matches desc
+
+function renderAllTimeRows(players) {
+  const tbody = document.getElementById('alltime-body');
+  if (!tbody) return;
+  tbody.innerHTML = players.map((p, i) => `<tr>
+    <td style="text-align:center;color:var(--green-mid);font-weight:600">${i+1}</td>
+    <td class="team-name">${p.name}</td>
+    <td style="font-size:11px;color:var(--mid-gray)">${p.seasons.join(', ')}</td>
+    <td>${p.matches}</td><td>${p.w}</td><td>${p.l}</td><td>${p.t}</td>
+    <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
+    <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${p.eagles || 0}</td>
+  </tr>`).join('');
+}
+
+function sortedAllTimePlayers(h) {
+  const players = h.allTime.players.filter(p => p.matches >= 1);
+  const key = ALLTIME_KEYS[allTimeState.sortCol];
+  const dir = allTimeState.sortDir;
+  players.sort((a, b) => {
+    let av, bv;
+    if (key === 'name') {
+      const cmp = a.name.localeCompare(b.name);
+      return dir === 'asc' ? cmp : -cmp;
+    } else if (key === 'seasonsCount') {
+      av = a.seasons.length; bv = b.seasons.length;
+    } else {
+      av = a[key]; bv = b[key];
+      if (av === null || av === undefined) av = -Infinity;
+      if (bv === null || bv === undefined) bv = -Infinity;
+    }
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return players;
+}
+
+function attachAllTimeSort(h) {
+  const table = document.getElementById('alltime-table');
+  if (!table) return;
+  renderAllTimeRows(sortedAllTimePlayers(h));
+  updateSortIndicators('alltime-table', allTimeState.sortCol, allTimeState.sortDir);
+  const ths = table.querySelectorAll('thead th');
+  ths.forEach((th, i) => {
+    if (i === 0) return; // rank column not sortable
+    th.dataset.label = th.textContent;
+    th.classList.add('sortable-th');
+    th.addEventListener('click', () => {
+      if (allTimeState.sortCol === i) {
+        allTimeState.sortDir = allTimeState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        allTimeState.sortCol = i;
+        // name asc default; gross/net avg asc default (lower is better); rest desc
+        allTimeState.sortDir = (i === 1 || i === 9 || i === 10) ? 'asc' : 'desc';
+      }
+      renderAllTimeRows(sortedAllTimePlayers(h));
+      updateSortIndicators('alltime-table', allTimeState.sortCol, allTimeState.sortDir);
+    });
+  });
 }
 
 /* PROFILES */
