@@ -2,11 +2,13 @@
 import openpyxl, json, datetime, re
 from collections import defaultdict
 
+# 2026 is intentionally NOT here: the site fetches current-season data live
+# from the Google Sheet and merges it client-side, so History/Profiles stay
+# current without regenerating this file. Add 2026 after the season completes.
 FILES = {
     2023: '/mnt/user-data/uploads/Stone_Arch_Golf_League_Data_2023_1_.xlsx',
     2024: '/mnt/user-data/uploads/Stone_Arch_Golf_League_Data_2024_1_.xlsx',
     2025: '/mnt/user-data/uploads/Stone_Arch_Golf_League_Data_2025_2_.xlsx',
-    2026: '/mnt/user-data/uploads/Stone_Arch_Golf_League_Data_2026_5_.xlsx',
 }
 
 def rows_of(ws):
@@ -433,45 +435,27 @@ def main():
         prof['career'] = career.get(name)
         prof['yearly'] = {str(y): v for y, v in sorted(all_individual.get(name, {}).items())}
 
-        # easiest / hardest matchups
+        # H2H base: raw per-opponent tallies; client merges live 2026 and computes
+        # easiest/hardest so current-season results are always reflected.
         opps = h2h.get(name, {})
-        scored = []
-        for opp, rec in opps.items():
-            avg = rec['marginSum'] / rec['meetings']
-            scored.append({'opp': opp, 'meetings': rec['meetings'], 'w': rec['w'], 'l': rec['l'],
-                           't': rec['t'], 'avgMargin': round(avg, 2)})
-        multi = [s for s in scored if s['meetings'] >= 2]
-        pool = multi if multi else scored
-        if pool:
-            easiest = max(pool, key=lambda s: s['avgMargin'])
-            hardest = min(pool, key=lambda s: s['avgMargin'])
-            prof['easiest'] = easiest
-            prof['hardest'] = hardest
-            others = [s for s in scored if s['opp'] not in (easiest['opp'], hardest['opp'])]
-            prof['easyMentions'] = sorted(others, key=lambda s: -s['avgMargin'])[:3]
-            prof['hardMentions'] = sorted(others, key=lambda s: s['avgMargin'])[:3]
-        # courses
-        cp = course_pts.get(name, {})
-        course_list = []
-        for c, ptslist in cp.items():
-            course_list.append({'course': c, 'rounds': len(ptslist),
-                                'avgPts': round(sum(ptslist)/len(ptslist), 2)})
-        # gross/net avgs per course from rounds
-        cr = defaultdict(lambda: {'gross': [], 'net': []})
-        for r in rounds_by_player.get(name, []):
-            if r['gross'] is not None: cr[r['course']]['gross'].append(r['gross'])
-            if r['net'] is not None: cr[r['course']]['net'].append(r['net'])
-        for c in course_list:
-            g = cr.get(c['course'], {}).get('gross', [])
-            n = cr.get(c['course'], {}).get('net', [])
-            c['avgGross'] = round(sum(g)/len(g), 1) if g else None
-            c['avgNet'] = round(sum(n)/len(n), 1) if n else None
-        multi_courses = [c for c in course_list if c['rounds'] >= 2]
-        cpool = multi_courses if multi_courses else course_list
-        if cpool:
-            prof['bestCourse'] = max(cpool, key=lambda c: c['avgPts'])
-            prof['worstCourse'] = min(cpool, key=lambda c: c['avgPts'])
-        prof['courses'] = sorted(course_list, key=lambda c: -c['avgPts'])
+        prof['h2hBase'] = {opp: {'meetings': rec['meetings'], 'w': rec['w'], 'l': rec['l'],
+                                 't': rec['t'], 'marginSum': round(rec['marginSum'], 2)}
+                           for opp, rec in opps.items()}
+        # Course base: raw sums from matchup rows (pts + gross + net); client merges 2026.
+        course_base = {}
+        for m in all_matchups:
+            if m.get('scramble'): continue
+            for (me, pts, gross, net_) in [(m['p1'], m['p1pts'], m['p1gross'], m['p1net']),
+                                           (m['p2'], m['p2pts'], m['p2gross'], m['p2net'])]:
+                if me != name or pts is None or not m['course']: continue
+                cb = course_base.setdefault(m['course'], {'rounds':0,'ptsSum':0,'grossSum':0,'grossN':0,'netSum':0,'netN':0})
+                cb['rounds'] += 1
+                cb['ptsSum'] += pts
+                if gross is not None: cb['grossSum'] += gross; cb['grossN'] += 1
+                if net_ is not None: cb['netSum'] += net_; cb['netN'] += 1
+        for cb in course_base.values():
+            cb['ptsSum'] = round(cb['ptsSum'], 1); cb['netSum'] = round(cb['netSum'], 1)
+        prof['courseBase'] = course_base
 
         # best match performances
         bp, bg, bn = best_matches(name)
@@ -540,25 +524,12 @@ def main():
 
         data['profiles'][name] = prof
 
-    # all-time matchup grid (only pairs that met)
-    grid = []
-    seen = set()
-    for a, opps_ in h2h.items():
-        for b, rec in opps_.items():
-            key = tuple(sorted([a, b]))
-            if key in seen: continue
-            seen.add(key)
-            # from perspective of key[0]
-            r0 = h2h[key[0]][key[1]]
-            grid.append({'a': key[0], 'b': key[1], 'meetings': r0['meetings'],
-                         'aW': r0['w'], 'bW': r0['l'], 't': r0['t'],
-                         'aAvgMargin': round(r0['marginSum']/r0['meetings'], 2)})
-    data['allTime']['h2h'] = sorted(grid, key=lambda g: -g['meetings'])
+    # h2h rivalry grid is computed client-side from profiles' h2hBase + live 2026
 
     with open('/home/claude/history.json', 'w') as f:
         json.dump(data, f, separators=(',', ':'))
     import os
     print(f"\nWrote history.json ({os.path.getsize('/home/claude/history.json')//1024} KB)")
-    print(f"Players: {len(data['profiles'])}, matchups: {len(all_matchups)}, rounds: {len(all_rounds)}, h2h pairs: {len(grid)}")
+    print(f"Players: {len(data['profiles'])}, matchups: {len(all_matchups)}, rounds: {len(all_rounds)}")
 
 main()
