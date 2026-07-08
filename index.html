@@ -3130,13 +3130,7 @@ function renderHistory(sel, h) {
 
   // Per-season medal blurbs (playoff finishes + season podiums for this year)
   if (y.playoffs) {
-    const pt = {};
-    pt[y.playoffs.champion] = { champion: 1, runnerUp: 0, semis: 0 };
-    pt[y.playoffs.runnerUp] = { ...(pt[y.playoffs.runnerUp] || { champion: 0, runnerUp: 0, semis: 0 }), runnerUp: 1 };
-    for (const s of (y.playoffs.semifinalists || [])) {
-      pt[s] = { ...(pt[s] || { champion: 0, runnerUp: 0, semis: 0 }), semis: (pt[s]?.semis || 0) + 1 };
-    }
-    html += renderPlayoffMedalBlurb(pt);
+    html += renderPlayoffMedalBlurb(collectPlayoffEntries({ [sel]: y }));
   }
   if (y.seasonPodiums) {
     html += renderSeasonMedalBlurb(collectSeasonEntries({ [sel]: y }));
@@ -3282,13 +3276,26 @@ function medalChipsStacked(tally, key) {
   return items.map(x => `<div class="medal-team-chip" style="display:block;margin:0 0 3px 0">${x.team}${x.n > 1 ? ` <span class="cnt">×${x.n}</span>` : ''}</div>`).join('');
 }
 
-function renderPlayoffMedalBlurb(tally, titleSuffix) {
+function renderPlayoffMedalBlurb(entriesByKey, titleSuffix) {
   return `<div class="medal-blurb">
     <div class="medal-blurb-title">🏆 Playoff Finishes${titleSuffix || ''}</div>
-    <div class="medal-row"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChips(tally, 'champion')}</div></div>
-    <div class="medal-row"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChips(tally, 'runnerUp')}</div></div>
-    <div class="medal-row"><div class="medal-tier semis">Semis</div><div class="medal-teams">${medalChips(tally, 'semis')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${seasonMedalLines(entriesByKey, 'champion')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${seasonMedalLines(entriesByKey, 'runnerUp')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier semis">Semis</div><div class="medal-teams">${seasonMedalLines(entriesByKey, 'semis')}</div></div>
   </div>`;
+}
+
+// Collect {year, team} playoff entries keyed by champion/runnerUp/semis.
+function collectPlayoffEntries(yearsObj) {
+  const out = {};
+  const push = (key, year, team) => { (out[key] = out[key] || []).push({ year: parseInt(year), team }); };
+  for (const [yr, y] of Object.entries(yearsObj)) {
+    if (!y.playoffs) continue;
+    push('champion', yr, y.playoffs.champion);
+    push('runnerUp', yr, y.playoffs.runnerUp);
+    for (const s of (y.playoffs.semifinalists || [])) push('semis', yr, s);
+  }
+  return out;
 }
 
 // entriesByKey: { spring1: [{year, team}], spring2: [...], ... }
@@ -3346,7 +3353,7 @@ function renderAllTime(h) {
   }
   html += `</div>`;
 
-  html += renderPlayoffMedalBlurb(h.allTime.playoffTally, ' — All-Time');
+  html += renderPlayoffMedalBlurb(collectPlayoffEntries(h.years), ' — All-Time');
   html += renderSeasonMedalBlurb(collectSeasonEntries(h.years));
 
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
