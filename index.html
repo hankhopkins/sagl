@@ -3270,10 +3270,12 @@ function renderAllTime(h) {
       const second = aLeads ? g.b : g.a;
       const firstW  = aLeads ? g.aW : g.bW;
       const secondW = aLeads ? g.bW : g.aW;
-      // Avg margin favors whoever aAvgMargin points to (a if positive, b if negative).
-      // This can differ from the win-leader, so label it independently.
-      const marginLeader = g.aAvgMargin > 0 ? g.a : g.aAvgMargin < 0 ? g.b : null;
-      const marginTxt = marginLeader ? `${lastName(marginLeader)} +${Math.abs(g.aAvgMargin).toFixed(1)}` : 'Even';
+      // Avg margin shown from the first-listed (win-leader) player's perspective.
+      // aAvgMargin is a's margin; negate if b is listed first.
+      const firstMargin = aLeads ? g.aAvgMargin : -g.aAvgMargin;
+      const marginTxt = Math.abs(firstMargin) < 0.05
+        ? 'Even'
+        : `${lastName(first)} ${firstMargin > 0 ? '+' : ''}${firstMargin.toFixed(1)}`;
       html += `<tr>
         <td class="team-name">${first} vs ${second}</td>
         <td style="text-align:center">${g.meetings}</td>
