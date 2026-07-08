@@ -2761,15 +2761,35 @@ function normName(n) {
 
 async function fetchHistory() {
   if (HISTORY) return HISTORY;
-  const [staticRes, indivT, s1T, s2T, weeklyT, dirT] = await Promise.all([
+  const [staticRes, indivT, s1T, s2T, weeklyT, dirT, hdcpT] = await Promise.all([
     fetch('data/history.json').then(r => r.json()),
     fetchSheet('individual_s1').catch(() => null),
     fetchSheet('season1').catch(() => null),
     fetchSheet('season2').catch(() => null),
     fetchSheet('weekly_results').catch(() => null),
-    fetchSheet('league_directory').catch(() => null)
+    fetchSheet('league_directory').catch(() => null),
+    fetchSheet('handicap_log').catch(() => null)
   ]);
   const h = staticRes;
+
+  // --- live 2026 handicap medians (Name, Date, Handicap in handicap_log) ---
+  h.hdcp2026 = {};
+  if (hdcpT) {
+    const buckets = {};
+    for (const r of tableRows(hdcpT)) {
+      const name = normName(String(r[0] || '').trim());
+      if (!name || name === 'Name') continue;
+      const v = parseFloat(r[2]);
+      if (isNaN(v)) continue; // skip 'NH'/blank
+      (buckets[name] = buckets[name] || []).push(v);
+    }
+    for (const [name, vals] of Object.entries(buckets)) {
+      vals.sort((a, b) => a - b);
+      const mid = Math.floor(vals.length / 2);
+      const median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+      h.hdcp2026[name] = Math.round(median * 100) / 100;
+    }
+  }
 
   // --- live roster from directory (source of truth for who's in the 2026 league) ---
   const roster = [];
@@ -2898,12 +2918,22 @@ function live2026Matchups(h, name) {
     && m.p1pts !== null && m.p2pts !== null);
 }
 
+function mergedAvgHdcp(h, name) {
+  // Average of per-season median handicaps: static medians (2023-25) + live 2026 median.
+  const medians = { ...((h.profiles[name] || {}).hdcpMedians || {}) };
+  if (h.hdcp2026 && h.hdcp2026[name] !== undefined) medians['2026'] = h.hdcp2026[name];
+  const vals = Object.values(medians);
+  if (!vals.length) return null;
+  return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 100) / 100;
+}
+
 function mergedCareer(h, name) {
   const base = (h.profiles[name] || {}).career || null;
   const live = live2026Stats(h, name);
   const liveHasData = live && live.matches > 0;
-  if (!base && !liveHasData) return live ? { name, seasons: [2026], matches: 0, w: 0, l: 0, t: 0, pts: 0, ptsMatch: null, grossAvg: null, netAvg: null, eagles: 0, birdies: 0 } : null;
-  if (!liveHasData) return base;
+  const avgHdcp = mergedAvgHdcp(h, name);
+  if (!base && !liveHasData) return live ? { name, seasons: [2026], matches: 0, w: 0, l: 0, t: 0, pts: 0, ptsMatch: null, grossAvg: null, netAvg: null, eagles: 0, birdies: 0, avgHdcp } : null;
+  if (!liveHasData) return { ...base, avgHdcp };
   const b = base || { seasons: [], matches: 0, w: 0, l: 0, t: 0, pts: 0, grossAvg: null, netAvg: null, eagles: 0, birdies: 0 };
   const matches = b.matches + live.matches;
   const wavg = (bv, lv) => {
@@ -2921,7 +2951,8 @@ function mergedCareer(h, name) {
     pts: Math.round((b.pts + (live.pts || 0)) * 10) / 10,
     ptsMatch: matches ? Math.round((b.pts + (live.pts || 0)) / matches * 100) / 100 : null,
     grossAvg: wavg(b.grossAvg, live.grossAvg), netAvg: wavg(b.netAvg, live.netAvg),
-    eagles: (b.eagles || 0) + (live.eagles || 0), birdies: (b.birdies || 0) + (live.birdies || 0)
+    eagles: (b.eagles || 0) + (live.eagles || 0), birdies: (b.birdies || 0) + (live.birdies || 0),
+    avgHdcp
   };
 }
 
@@ -3197,7 +3228,7 @@ function renderAllTime(h) {
 
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
   <div class="table-wrap"><table id="alltime-table"><thead><tr>
-    <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Eagles</th>
+    <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Avg Hdcp</th><th>Eagles</th>
   </tr></thead><tbody id="alltime-body"></tbody></table></div>`;
 
   // Rivalries: merged h2h across base + live
@@ -3252,7 +3283,7 @@ function renderAllTime(h) {
 }
 
 /* ALL-TIME TABLE SORTING */
-const ALLTIME_KEYS = [null, 'name', 'seasonsCount', 'matches', 'w', 'l', 't', 'pts', 'ptsMatch', 'grossAvg', 'netAvg', 'eagles'];
+const ALLTIME_KEYS = [null, 'name', 'seasonsCount', 'matches', 'w', 'l', 't', 'pts', 'ptsMatch', 'grossAvg', 'netAvg', 'avgHdcp', 'eagles'];
 const allTimeState = { sortCol: 3, sortDir: 'desc' }; // default: Matches desc
 
 function renderAllTimeRows(players) {
@@ -3264,7 +3295,7 @@ function renderAllTimeRows(players) {
     <td style="font-size:11px;color:var(--mid-gray)">${p.seasons.join(', ')}</td>
     <td>${p.matches}</td><td>${p.w}</td><td>${p.l}</td><td>${p.t}</td>
     <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
-    <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${p.eagles || 0}</td>
+    <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${fmt1(p.avgHdcp)}</td><td>${p.eagles || 0}</td>
   </tr>`).join('');
 }
 
@@ -3304,7 +3335,7 @@ function attachAllTimeSort(h) {
         allTimeState.sortDir = allTimeState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         allTimeState.sortCol = i;
-        allTimeState.sortDir = (i === 1 || i === 9 || i === 10) ? 'asc' : 'desc';
+        allTimeState.sortDir = (i === 1 || i === 9 || i === 10 || i === 11) ? 'asc' : 'desc';
       }
       renderAllTimeRows(sortedAllTimePlayers(h));
       updateSortIndicators('alltime-table', allTimeState.sortCol, allTimeState.sortDir);
