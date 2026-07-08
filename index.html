@@ -3276,6 +3276,16 @@ function medalChips(tally, key) {
   return items.map(x => `<span class="medal-team-chip">${x.team}${x.n > 1 ? ` <span class="cnt">×${x.n}</span>` : ''}</span>`).join('<span style="color:var(--light-gray)"> · </span>');
 }
 
+// Same as medalChips but each team on its own line.
+function medalChipsStacked(tally, key) {
+  const items = Object.entries(tally)
+    .map(([team, t]) => ({ team, n: t[key] || 0 }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.team.localeCompare(b.team));
+  if (!items.length) return '<span style="color:var(--mid-gray);font-style:italic">—</span>';
+  return items.map(x => `<div class="medal-team-chip" style="display:block;margin:0 0 3px 0">${x.team}${x.n > 1 ? ` <span class="cnt">×${x.n}</span>` : ''}</div>`).join('');
+}
+
 function renderPlayoffMedalBlurb(tally, titleSuffix) {
   return `<div class="medal-blurb">
     <div class="medal-blurb-title">🏆 Playoff Finishes${titleSuffix || ''}</div>
@@ -3288,9 +3298,9 @@ function renderPlayoffMedalBlurb(tally, titleSuffix) {
 function renderSeasonMedalBlurb(tally) {
   const col = (title, prefix) => `<div class="medal-blurb" style="margin-bottom:0">
     <div class="medal-blurb-title">${title}</div>
-    <div class="medal-row"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChips(tally, prefix + '1')}</div></div>
-    <div class="medal-row"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChips(tally, prefix + '2')}</div></div>
-    <div class="medal-row"><div class="medal-tier bronze">🥉 3rd</div><div class="medal-teams">${medalChips(tally, prefix + '3')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '1')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '2')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier bronze">🥉 3rd</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '3')}</div></div>
   </div>`;
   return `<div style="margin-bottom:1.5rem"><div class="medal-blurb-cols">
     ${col('⛳ Spring Season Finishes', 'spring')}
