@@ -278,6 +278,24 @@ def parse_raw(wb, year):
                 i += 1
     return rounds
 
+# ---------- Static season podiums (regular-season finishes) ----------
+# Ties resolved per league rules (head-to-head, then coin flip). Two coin-flip
+# ties (2024 Spring 2nd, 2025 Summer 1st) were resolved by the commissioner.
+SEASON_PODIUMS = {
+    2023: {
+        'spring': ['Anderson & Bornhorst', 'Hopkins & Mugford', 'Manske & Wesling'],
+        'summer': ['Wolf & Makey', 'Hopkins & Mugford', 'Mendiratta & Altenburg'],
+    },
+    2024: {
+        'spring': ['Leadley & Mullins', 'Zittergruen & Wolf', 'Egan & Jansa'],
+        'summer': ['Zittergruen & Wolf', 'Leadley & Mullins', 'Hopkins & Mugford'],
+    },
+    2025: {
+        'spring': ['Hopkins & Mugford', 'Nelson & Wesling', 'Newman & Lacy'],
+        'summer': ['Archer & Bratland', 'Gallagher & Gallagher', 'Leadley & Mullins'],
+    },
+}
+
 # ---------- Static playoff summaries ----------
 PLAYOFFS = {
     2023: {
@@ -363,6 +381,7 @@ def main():
             's1': s1, 's2': s2, 'combined': combined,
             'individual': indiv, 'matchups': matchups, 'courses': courses,
             'playoffs': PLAYOFFS.get(year),
+            'seasonPodiums': SEASON_PODIUMS.get(year),
             'inProgress': year == 2026,
         }
         print(f"{year}: {len(s1)} s1 teams, {len(indiv)} players, {len(matchups)} matchup rows, {len(rounds)} rounds, courses: {courses}")
@@ -552,6 +571,24 @@ def main():
         data['profiles'][name] = prof
 
     # h2h rivalry grid is computed client-side from profiles' h2hBase + live 2026
+
+    # ---- All-time team accomplishment tallies (playoffs + regular season) ----
+    playoff_tally = defaultdict(lambda: {'champion': 0, 'runnerUp': 0, 'semis': 0})
+    season_tally  = defaultdict(lambda: {'spring1': 0, 'spring2': 0, 'spring3': 0,
+                                         'summer1': 0, 'summer2': 0, 'summer3': 0})
+    for year, po in PLAYOFFS.items():
+        playoff_tally[po['champion']]['champion'] += 1
+        playoff_tally[po['runnerUp']]['runnerUp'] += 1
+        for semi in po.get('semifinalists', []):
+            playoff_tally[semi]['semis'] += 1
+    for year, sp in SEASON_PODIUMS.items():
+        for half, keyprefix in [('spring', 'spring'), ('summer', 'summer')]:
+            podium = sp.get(half, [])
+            for idx, team in enumerate(podium):
+                season_tally[team][f'{keyprefix}{idx+1}'] += 1
+
+    data['allTime']['playoffTally'] = {k: v for k, v in playoff_tally.items()}
+    data['allTime']['seasonTally']  = {k: v for k, v in season_tally.items()}
 
     with open('/home/claude/history.json', 'w') as f:
         json.dump(data, f, separators=(',', ':'))
