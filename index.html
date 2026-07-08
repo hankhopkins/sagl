@@ -3263,12 +3263,22 @@ function renderAllTime(h) {
       <th>Matchup</th><th>Meetings</th><th>Record</th><th>Avg Margin</th>
     </tr></thead><tbody>`;
     for (const g of rivalries) {
-      const leader = g.aAvgMargin > 0 ? g.a : g.aAvgMargin < 0 ? g.b : null;
+      // List the player with more wins first, and orient the record to match.
+      // Tiebreak on avg margin when wins are equal.
+      const aLeads = g.aW > g.bW || (g.aW === g.bW && g.aAvgMargin >= 0);
+      const first  = aLeads ? g.a : g.b;
+      const second = aLeads ? g.b : g.a;
+      const firstW  = aLeads ? g.aW : g.bW;
+      const secondW = aLeads ? g.bW : g.aW;
+      // Avg margin favors whoever aAvgMargin points to (a if positive, b if negative).
+      // This can differ from the win-leader, so label it independently.
+      const marginLeader = g.aAvgMargin > 0 ? g.a : g.aAvgMargin < 0 ? g.b : null;
+      const marginTxt = marginLeader ? `${lastName(marginLeader)} +${Math.abs(g.aAvgMargin).toFixed(1)}` : 'Even';
       html += `<tr>
-        <td class="team-name">${g.a} vs ${g.b}</td>
+        <td class="team-name">${first} vs ${second}</td>
         <td style="text-align:center">${g.meetings}</td>
-        <td style="text-align:center">${g.aW}–${g.bW}–${g.t}</td>
-        <td style="text-align:center;font-size:12px">${leader ? `${lastName(leader)} +${Math.abs(g.aAvgMargin).toFixed(1)}` : 'Even'}</td>
+        <td style="text-align:center">${firstW}–${secondW}–${g.t}</td>
+        <td style="text-align:center;font-size:12px">${marginTxt}</td>
       </tr>`;
     }
     html += `</tbody></table></div>`;
