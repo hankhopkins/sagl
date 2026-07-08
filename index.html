@@ -1551,7 +1551,7 @@ async function loadSkins() {
       <td>${fmtPts(r[1])}</td>
       <td>${fmtPts(r[2])}</td>
       <td><strong>${fmtPts(r[3])}</strong></td>
-      <td>$${fmtPts(r[4])}</td>
+      <td>$${Math.round(parseFloat(r[4]) || 0)}</td>
     </tr>`).join('');
   } catch(e) {
     document.getElementById('skins-body').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load skins data.</td></tr>';
