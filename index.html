@@ -498,6 +498,37 @@
   .best-val { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; color: var(--green-dark); }
   .best-ctx { font-size: 11px; color: var(--mid-gray); margin-top: 4px; line-height: 1.5; }
 
+  /* MEDAL COUNT BLURBS */
+  .medal-blurb {
+    background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.2rem 1.4rem; margin-bottom: 1.5rem;
+  }
+  .medal-blurb-title {
+    font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--green-dark); margin-bottom: 12px;
+  }
+  .medal-row {
+    display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: baseline;
+    padding: 7px 0; border-bottom: 1px solid var(--light-gray); font-size: 13.5px;
+  }
+  .medal-row:last-child { border-bottom: none; }
+  .medal-tier {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .medal-tier.gold  { color: var(--gold); }
+  .medal-tier.silver { color: #888; }
+  .medal-tier.bronze { color: #a0522d; }
+  .medal-tier.semis { color: var(--green-mid); }
+  .medal-teams { color: var(--charcoal); line-height: 1.7; }
+  .medal-team-chip {
+    display: inline-block; margin: 0 4px 4px 0;
+  }
+  .medal-team-chip .cnt { color: var(--mid-gray); font-size: 12px; }
+  .medal-blurb-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 640px) { .medal-blurb-cols { grid-template-columns: 1fr; } }
+
+  /* MEDAL COUNT BLURBS end */
   /* LOADING */
   .loading-msg {
     text-align: center;
@@ -3092,6 +3123,24 @@ function renderHistory(sel, h) {
     </div>`;
   }
 
+  // Per-season medal blurbs (playoff finishes + season podiums for this year)
+  if (y.playoffs) {
+    const pt = {};
+    pt[y.playoffs.champion] = { champion: 1, runnerUp: 0, semis: 0 };
+    pt[y.playoffs.runnerUp] = { ...(pt[y.playoffs.runnerUp] || { champion: 0, runnerUp: 0, semis: 0 }), runnerUp: 1 };
+    for (const s of (y.playoffs.semifinalists || [])) {
+      pt[s] = { ...(pt[s] || { champion: 0, runnerUp: 0, semis: 0 }), semis: (pt[s]?.semis || 0) + 1 };
+    }
+    html += renderPlayoffMedalBlurb(pt);
+  }
+  if (y.seasonPodiums) {
+    const st = {};
+    const add = (team, key) => { st[team] = st[team] || {}; st[team][key] = (st[team][key] || 0) + 1; };
+    (y.seasonPodiums.spring || []).forEach((t, i) => add(t, 'spring' + (i + 1)));
+    (y.seasonPodiums.summer || []).forEach((t, i) => add(t, 'summer' + (i + 1)));
+    html += renderSeasonMedalBlurb(st);
+  }
+
   const standings = (y.combined && y.combined.length) ? y.combined : null;
   if (standings) {
     html += `<div class="section-title"><span class="dot"></span>Final Standings</div>
@@ -3211,6 +3260,39 @@ function allMergedPlayers(h) {
   return out;
 }
 
+// Build a list of "Team (×N)" chips for teams with count >= 1 in the given key,
+// sorted by count desc then name.
+function medalChips(tally, key) {
+  const items = Object.entries(tally)
+    .map(([team, t]) => ({ team, n: t[key] || 0 }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.team.localeCompare(b.team));
+  if (!items.length) return '<span style="color:var(--mid-gray);font-style:italic">—</span>';
+  return items.map(x => `<span class="medal-team-chip">${x.team}${x.n > 1 ? ` <span class="cnt">×${x.n}</span>` : ''}</span>`).join('<span style="color:var(--light-gray)"> · </span>');
+}
+
+function renderPlayoffMedalBlurb(tally, titleSuffix) {
+  return `<div class="medal-blurb">
+    <div class="medal-blurb-title">🏆 Playoff Finishes${titleSuffix || ''}</div>
+    <div class="medal-row"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChips(tally, 'champion')}</div></div>
+    <div class="medal-row"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChips(tally, 'runnerUp')}</div></div>
+    <div class="medal-row"><div class="medal-tier semis">Semis</div><div class="medal-teams">${medalChips(tally, 'semis')}</div></div>
+  </div>`;
+}
+
+function renderSeasonMedalBlurb(tally) {
+  const col = (title, prefix) => `<div class="medal-blurb" style="margin-bottom:0">
+    <div class="medal-blurb-title">${title}</div>
+    <div class="medal-row"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChips(tally, prefix + '1')}</div></div>
+    <div class="medal-row"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChips(tally, prefix + '2')}</div></div>
+    <div class="medal-row"><div class="medal-tier bronze">🥉 3rd</div><div class="medal-teams">${medalChips(tally, prefix + '3')}</div></div>
+  </div>`;
+  return `<div style="margin-bottom:1.5rem"><div class="medal-blurb-cols">
+    ${col('⛳ Spring Season Finishes', 'spring')}
+    ${col('☀️ Summer Season Finishes', 'summer')}
+  </div></div>`;
+}
+
 function renderAllTime(h) {
   let html = '';
   html += `<div class="section-title"><span class="dot"></span>League Champions</div>
@@ -3225,6 +3307,9 @@ function renderAllTime(h) {
     }
   }
   html += `</div>`;
+
+  html += renderPlayoffMedalBlurb(h.allTime.playoffTally, ' — All-Time');
+  html += renderSeasonMedalBlurb(h.allTime.seasonTally);
 
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
   <div class="table-wrap"><table id="alltime-table"><thead><tr>
