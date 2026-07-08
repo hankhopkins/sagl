@@ -823,13 +823,13 @@
   <button class="nav-btn" data-tab="results">Results</button>
   <button class="nav-btn" data-tab="scorecards">Matchups</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
-  <button class="nav-btn" data-tab="players">Players</button>
+  <button class="nav-btn" data-tab="players">Directory</button>
   <button class="nav-btn" data-tab="scramble">Scramble</button>
   <button class="nav-btn" data-tab="skins">Skins</button>
   <button class="nav-btn" data-tab="totw">TOTW</button>
-  <button class="nav-btn" data-tab="history">History</button>
-  <button class="nav-btn" data-tab="profiles">Profiles</button>
   <button class="nav-btn" data-tab="rules">Rules</button>
+  <button class="nav-btn" data-tab="profiles">Profiles</button>
+  <button class="nav-btn" data-tab="history">History</button>
 </nav>
 
 <main>
@@ -3105,12 +3105,17 @@ function renderHistory(sel, h) {
   let html = '';
 
   if (y.playoffs) {
+    const finals = y.playoffs.rounds && y.playoffs.rounds.length
+      ? y.playoffs.rounds[y.playoffs.rounds.length - 1].matches[0] : null;
+    const finalsLine = finals
+      ? `${finals.score}${finals.courses ? ' at ' + finals.courses : ''}`
+      : '';
     html += `<div class="hist-champ-banner">
       <div class="trophy">🏆</div>
       <div>
         <div class="hist-champ-title">${sel} League Champions</div>
         <div class="hist-champ-name">${y.playoffs.champion}</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;">Runners-up: ${y.playoffs.runnerUp}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;">def. ${y.playoffs.runnerUp}${finalsLine ? ' — ' + finalsLine : ''}</div>
       </div>
     </div>`;
   } else if (y.inProgress) {
@@ -3299,10 +3304,16 @@ function renderAllTime(h) {
   <div class="matchup-cards" style="margin-bottom:2rem">`;
   for (const [yr, y] of Object.entries(h.years)) {
     if (y.playoffs) {
+      const finals = y.playoffs.rounds && y.playoffs.rounds.length
+        ? y.playoffs.rounds[y.playoffs.rounds.length - 1].matches[0] : null;
+      const finalsLine = finals
+        ? `${finals.score}${finals.courses ? ' at ' + finals.courses : ''}`
+        : '';
       html += `<div class="mc-card" style="border-top:3px solid var(--gold)">
         <div class="mc-label">${yr}</div>
         <div class="mc-opp">🏆 ${y.playoffs.champion}</div>
         <div class="mc-margin">def. ${y.playoffs.runnerUp}</div>
+        ${finalsLine ? `<div class="mc-margin" style="margin-top:4px;color:var(--green-mid);font-weight:500">${finalsLine}</div>` : ''}
       </div>`;
     }
   }
