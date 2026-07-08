@@ -3294,7 +3294,7 @@ function renderPlayoffMedalBlurb(tally, titleSuffix) {
 // entriesByKey: { spring1: [{year, team}], spring2: [...], ... }
 // Each team on its own line, prefixed with the year, sorted chronologically.
 function seasonMedalLines(entriesByKey, key) {
-  const list = (entriesByKey[key] || []).slice().sort((a, b) => a.year - b.year || a.team.localeCompare(b.team));
+  const list = (entriesByKey[key] || []).slice().sort((a, b) => b.year - a.year || a.team.localeCompare(b.team));
   if (!list.length) return '<span style="color:var(--mid-gray);font-style:italic">—</span>';
   return list.map(x => `<div class="medal-team-chip" style="display:block;margin:0 0 3px 0"><span class="cnt" style="margin-right:6px">${x.year}</span>${x.team}</div>`).join('');
 }
