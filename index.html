@@ -3139,11 +3139,7 @@ function renderHistory(sel, h) {
     html += renderPlayoffMedalBlurb(pt);
   }
   if (y.seasonPodiums) {
-    const st = {};
-    const add = (team, key) => { st[team] = st[team] || {}; st[team][key] = (st[team][key] || 0) + 1; };
-    (y.seasonPodiums.spring || []).forEach((t, i) => add(t, 'spring' + (i + 1)));
-    (y.seasonPodiums.summer || []).forEach((t, i) => add(t, 'summer' + (i + 1)));
-    html += renderSeasonMedalBlurb(st);
+    html += renderSeasonMedalBlurb(collectSeasonEntries({ [sel]: y }));
   }
 
   const standings = (y.combined && y.combined.length) ? y.combined : null;
@@ -3295,17 +3291,38 @@ function renderPlayoffMedalBlurb(tally, titleSuffix) {
   </div>`;
 }
 
-function renderSeasonMedalBlurb(tally) {
+// entriesByKey: { spring1: [{year, team}], spring2: [...], ... }
+// Each team on its own line, prefixed with the year, sorted chronologically.
+function seasonMedalLines(entriesByKey, key) {
+  const list = (entriesByKey[key] || []).slice().sort((a, b) => a.year - b.year || a.team.localeCompare(b.team));
+  if (!list.length) return '<span style="color:var(--mid-gray);font-style:italic">—</span>';
+  return list.map(x => `<div class="medal-team-chip" style="display:block;margin:0 0 3px 0"><span class="cnt" style="margin-right:6px">${x.year}</span>${x.team}</div>`).join('');
+}
+
+function renderSeasonMedalBlurb(entriesByKey) {
   const col = (title, prefix) => `<div class="medal-blurb" style="margin-bottom:0">
     <div class="medal-blurb-title">${title}</div>
-    <div class="medal-row" style="align-items:start"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '1')}</div></div>
-    <div class="medal-row" style="align-items:start"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '2')}</div></div>
-    <div class="medal-row" style="align-items:start"><div class="medal-tier bronze">🥉 3rd</div><div class="medal-teams">${medalChipsStacked(tally, prefix + '3')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier gold">🥇 1st</div><div class="medal-teams">${seasonMedalLines(entriesByKey, prefix + '1')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier silver">🥈 2nd</div><div class="medal-teams">${seasonMedalLines(entriesByKey, prefix + '2')}</div></div>
+    <div class="medal-row" style="align-items:start"><div class="medal-tier bronze">🥉 3rd</div><div class="medal-teams">${seasonMedalLines(entriesByKey, prefix + '3')}</div></div>
   </div>`;
   return `<div style="margin-bottom:1.5rem"><div class="medal-blurb-cols">
     ${col('🌺 Spring Season Finishes', 'spring')}
     ${col('☀️ Summer Season Finishes', 'summer')}
   </div></div>`;
+}
+
+// Collect {year, team} podium entries keyed by spring1/2/3 + summer1/2/3.
+// yearsObj: either all h.years (all-time) or a single {year: y} map.
+function collectSeasonEntries(yearsObj) {
+  const out = {};
+  const push = (key, year, team) => { (out[key] = out[key] || []).push({ year: parseInt(year), team }); };
+  for (const [yr, y] of Object.entries(yearsObj)) {
+    if (!y.seasonPodiums) continue;
+    (y.seasonPodiums.spring || []).forEach((t, i) => push('spring' + (i + 1), yr, t));
+    (y.seasonPodiums.summer || []).forEach((t, i) => push('summer' + (i + 1), yr, t));
+  }
+  return out;
 }
 
 function renderAllTime(h) {
@@ -3330,7 +3347,7 @@ function renderAllTime(h) {
   html += `</div>`;
 
   html += renderPlayoffMedalBlurb(h.allTime.playoffTally, ' — All-Time');
-  html += renderSeasonMedalBlurb(h.allTime.seasonTally);
+  html += renderSeasonMedalBlurb(collectSeasonEntries(h.years));
 
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
   <div class="table-wrap"><table id="alltime-table"><thead><tr>
