@@ -2763,7 +2763,7 @@ async function fetchHistory() {
   if (HISTORY) return HISTORY;
   const [staticRes, indivT, s1T, s2T, weeklyT, dirT] = await Promise.all([
     fetch('data/history.json').then(r => r.json()),
-    fetchSheet('individual').catch(() => null),
+    fetchSheet('individual_s1').catch(() => null),
     fetchSheet('season1').catch(() => null),
     fetchSheet('season2').catch(() => null),
     fetchSheet('weekly_results').catch(() => null),
@@ -2798,7 +2798,7 @@ async function fetchHistory() {
       live_individual.push({
         name, matches: n(r[1]), w: n(r[2]), l: n(r[3]), t: n(r[4]), pts: n(r[5]),
         ptsMatch: n(r[6]), grossAvg: n(r[7]), netAvg: n(r[8]),
-        eagles: n(r[10]), birdies: n(r[11])
+        eagles: n(r[12]), birdies: n(r[13])
       });
     }
   }
