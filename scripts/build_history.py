@@ -1,5 +1,5 @@
 """Extract SAGL history from 2023-2026 workbooks into history.json"""
-import openpyxl, json, datetime, re
+import openpyxl, json, datetime, re, statistics
 from collections import defaultdict
 
 # 2026 is intentionally NOT here: the site fetches current-season data live
@@ -67,6 +67,22 @@ def parse_directory(wb):
     for name, t in players.items():
         teams[t].append(name)
     return players, dict(teams)
+
+# ---------- Handicap medians ----------
+def parse_hdcp_medians(wb):
+    """Median handicap per player from the season's handicap_log (Name, Date, Handicap)."""
+    if 'handicap_log' not in wb.sheetnames:
+        return {}
+    vals = defaultdict(list)
+    for r in wb['handicap_log'].iter_rows(min_row=2, values_only=True):
+        if not r or not r[0]: continue
+        name = fix_name(str(r[0]).strip())
+        if is_junk(name) or is_team_row(name): continue
+        try:
+            vals[name].append(float(r[2]))
+        except (TypeError, ValueError):
+            continue  # 'NH' / blanks
+    return {name: round(statistics.median(v), 2) for name, v in vals.items() if v}
 
 # ---------- Standings ----------
 def parse_standings(wb, sheet):
@@ -323,9 +339,11 @@ def main():
     all_individual = defaultdict(lambda: defaultdict(dict))  # player -> year -> stats
     partner_map = defaultdict(dict)  # player -> year -> partner
 
+    hdcp_by_year = {}  # year -> {name -> median hdcp}
     for year, path in FILES.items():
         wb = openpyxl.load_workbook(path, data_only=True)
         players, teams = parse_directory(wb)
+        hdcp_by_year[year] = parse_hdcp_medians(wb)
         for t, members in teams.items():
             for m in members:
                 others = [x for x in members if x != m]
@@ -432,6 +450,15 @@ def main():
     for name in all_players:
         prof = {'name': name}
         prof['partners'] = partner_map.get(name, {})
+        # Handicap: per-season medians + average across seasons played (static years only;
+        # client adds 2026 live). Stored raw so the client can merge cleanly.
+        season_medians = {}
+        for yr, mp in hdcp_by_year.items():
+            if name in mp: season_medians[str(yr)] = mp[name]
+        prof['hdcpMedians'] = season_medians
+        if career.get(name):
+            career[name]['avgHdcp'] = (round(sum(season_medians.values())/len(season_medians), 2)
+                                       if season_medians else None)
         prof['career'] = career.get(name)
         prof['yearly'] = {str(y): v for y, v in sorted(all_individual.get(name, {}).items())}
 
