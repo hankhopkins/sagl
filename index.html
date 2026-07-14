@@ -847,7 +847,7 @@
     <div class="table-wrap">
       <table id="s1-table">
         <thead><tr>
-          <th>#</th><th>Team</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th>Pts</th><th class="standings-pts-match">Pts/Match</th>
+          <th>#</th><th>Team</th><th>W</th><th>L</th><th class="standings-t-col">T</th><th class="standings-scramble">2-Man</th><th>Pts</th><th class="standings-pts-match">Pts/Match</th>
         </tr></thead>
         <tbody id="s1-body">
           <tr><td colspan="8" class="loading-msg"><div class="spinner"></div>Loading live data…</td></tr>
@@ -1256,7 +1256,7 @@ function teamNameFromRow(r) {
 
 // Store raw rows + current sort state per table, so columns can be re-sorted in place
 const tableState = {
-  s1:  { rows: [], sortCol: 6, sortDir: 'desc' },   // default: Pts/Match desc (th index 6)
+  s1:  { rows: [], sortCol: 7, sortDir: 'desc' },   // default: Pts/Match desc (th index 7)
   ind: { rows: [], sortCol: 4, sortDir: 'desc' }    // default: Pts/Match desc (th index 4)
 };
 
@@ -1291,6 +1291,7 @@ function renderS1Rows(rows, showMedals) {
       <td>${fmtPts(r[4])}</td>
       <td>${fmtPts(r[5])}</td>
       <td class="standings-t-col">${fmtPts(r[6])}</td>
+      <td class="standings-scramble">${fmtPts(r[7])}</td>
       <td><strong>${fmtPts(r[8])}</strong></td>
       <td class="standings-pts-match">${fmtPts(r[9])}</td>
     </tr>`;
@@ -1327,8 +1328,8 @@ function renderIndRows(rows, showMedals) {
 }
 
 // Column index in the underlying row data for each visible <th> position (0-based, matches <th> order)
-// s1-table th order: #, Team, W, L, T, Pts, Pts/Match -> row indices
-const S1_COL_MAP  = [null, 'name', 4, 5, 6, 8, 9];
+// s1-table th order: #, Team, W, L, T, 2-Man, Pts, Pts/Match -> row indices
+const S1_COL_MAP  = [null, 'name', 4, 5, 6, 7, 8, 9];
 // ind-table th order: Player, W, L, T, Pts/Match, Gross, Net, OppNet, Birdie, Par, Bogey, Double+
 const IND_COL_MAP = ['name', 2, 3, 4, 6, 7, 8, 9, 18, 19, 20, 'double'];
 
@@ -1373,7 +1374,7 @@ function updateSortIndicators(tableId, colIdx, dir) {
 // "standings" order — Pts/Match desc for both teams and individuals.
 // Any other sort column/direction shows plain numeric rank instead, but the
 // rank NUMBER itself stays fixed to each row's natural place (see _place).
-const S1_DEFAULT_COL  = 6; // Pts/Match column (th index)
+const S1_DEFAULT_COL  = 7; // Pts/Match column (th index)
 const IND_DEFAULT_COL = 4; // Pts/Match column (th index)
 
 function sortS1Table(colIdx) {
