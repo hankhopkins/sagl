@@ -2541,8 +2541,23 @@ async function updateNineDropdown() {
 async function loadScramble() {
   const container = document.getElementById('scramble-content');
   try {
-    const table = await fetchSheet('meadowbrook');
+    const [table, s1Table] = await Promise.all([
+      fetchSheet('meadowbrook'),
+      fetchSheet('season1').catch(() => null)
+    ]);
     const rows = tableRows(table);
+
+    // Build scramble-points lookup from season1 (col 7 = Scramble), keyed by
+    // "Lastname & Lastname" to match the meadowbrook team names.
+    const scramblePts = {};
+    if (s1Table) {
+      for (const r of tableRows(s1Table)) {
+        if (!r[1] || r[1] === 'Player1') continue;
+        const key = `${lastName(String(r[1]))} & ${lastName(String(r[2]))}`;
+        const pts = parseFloat(r[7]);
+        if (!isNaN(pts)) scramblePts[key] = pts;
+      }
+    }
 
     // Course info: row 1 = yardages, row 2 = par, row 3 = hole hdcps
     // gviz row indices (0-based after header skipping): we find them by content
@@ -2642,7 +2657,7 @@ async function loadScramble() {
     html += `<div class="table-wrap" style="margin-bottom:2rem">
       <table id="scramble-table">
         <thead><tr>
-          <th>#</th><th>Team</th><th>Date</th><th>Course Hdcp</th><th>Gross</th><th>Net</th>
+          <th>#</th><th>Team</th><th>Date</th><th>Course Hdcp</th><th>Gross</th><th>Net</th><th>Points</th>
         </tr></thead>
         <tbody>`;
     sorted.forEach((t, i) => {
@@ -2653,6 +2668,8 @@ async function loadScramble() {
       const grossDisplay = t.grossTotal !== null ? t.grossTotal : '—';
       const dateDisplay = t.dateStr || '<em style="color:var(--mid-gray)">TBD</em>';
       const chDisplay = t.courseHdcp > 0 ? t.courseHdcp.toFixed(2) : t.courseHdcp < 0 ? t.courseHdcp.toFixed(2) : '0.00';
+      const pts = scramblePts[t.teamName];
+      const ptsDisplay = pts !== undefined ? (pts % 1 === 0 ? pts : pts.toFixed(1)) : '—';
       html += `<tr style="${i < 3 ? 'background:rgba(201,168,76,0.04)' : ''}">
         <td class="${rankClass(i)}">${rankDisplay}</td>
         <td class="team-name" style="${i < 3 ? 'font-weight:600' : ''}">${t.teamName}</td>
@@ -2660,7 +2677,7 @@ async function loadScramble() {
         <td>${chDisplay}</td>
         <td>${grossDisplay}</td>
         <td><strong>${netDisplay}</strong></td>
-
+        <td><span class="pts-badge">${ptsDisplay}</span></td>
       </tr>`;
     });
     html += `</tbody></table></div>`;
