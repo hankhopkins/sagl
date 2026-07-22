@@ -1307,7 +1307,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
   document.getElementById('tab-' + tab).classList.add('active');
   loadTab(tab);
   if (tab === 'scorecards') setTimeout(autoScaleScorecard, 100);
-  if (tab === 'standings')  setTimeout(autoScaleTables, 100);
+  if (tab === 'standings')  { setTimeout(autoScaleTables, 100); setTimeout(autoScaleTables, 500); }
 });
 
 /* STANDINGS */
@@ -1332,6 +1332,9 @@ function teamNameFromRow(r) {
    time, with a hardcoded per-sheet fallback if gviz returns no labels.
    Rows are normalized into objects before rendering, which is what makes the
    Spring+Summer merge simple arithmetic instead of index juggling. */
+
+const STANDINGS_DEBUG = /[?&]debug=standings/.test(location.search);
+function sdbg() { if (STANDINGS_DEBUG) console.log.apply(console, ['[standings]'].concat([].slice.call(arguments))); }
 
 const SEASON_VIEWS = {
   spring: { label: 'Spring',        teamSheet: 'season1',   indSheets: ['individual_s1'] },
@@ -1582,12 +1585,25 @@ function assignNaturalRanks(rows, keys, defaultColIdx) {
   return rows;
 }
 
+// Distinguishes "sheet gave us nothing", "we couldn't find the Points column"
+// and "genuinely no matches played" so a blank table is never a mystery.
+function standingsEmptyMessage(rows, ptsKey, sheetName, label) {
+  if (rows.length === 0) {
+    return 'No ' + label + ' rows found in the <code>' + sheetName + '</code> sheet yet.';
+  }
+  if (rows.every(r => r[ptsKey] === null || r[ptsKey] === undefined)) {
+    return 'Found ' + rows.length + ' rows in <code>' + sheetName +
+           '</code> but no readable points column — the sheet layout may have changed.';
+  }
+  return 'No ' + label + ' results yet — check back once matches have been played.';
+}
+
 function renderS1Rows(rows, showMedals) {
   const tbody = document.getElementById('s1-body');
   const label = SEASON_VIEWS[seasonView].label;
   if (rows.length === 0 || rows.every(r => (r.pts || 0) === 0)) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No ' +
-      label + ' standings yet — check back once matches have been played.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">' +
+      standingsEmptyMessage(rows, 'pts', SEASON_VIEWS[seasonView].teamSheet, label) + '</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r) => {
@@ -1617,8 +1633,8 @@ function renderIndRows(rows, showMedals) {
   const tbody = document.getElementById('ind-body');
   const label = SEASON_VIEWS[seasonView].label;
   if (rows.length === 0 || rows.every(r => (r.pts || 0) === 0)) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No ' +
-      label + ' individual stats yet — check back once matches have been played.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">' +
+      standingsEmptyMessage(rows, 'pts', SEASON_VIEWS[seasonView].indSheets.join(' + '), label) + '</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r) => {
@@ -1707,13 +1723,19 @@ async function loadStandings() {
   });
 
   const dirNames = await getDirectoryNames();
+  sdbg('directory names:', dirNames.size, Array.from(dirNames).slice(0, 4));
   const inDir = n => (dirNames.size === 0) || dirNames.has(n);
 
   const teamPromise = (async () => {
     try {
       const res = await fetchSheetCached(view.teamSheet);
       const norm = normTeamRows(res.table, res.rows, view.teamSheet);
-      const rows = norm.rows.filter(r => inDir(r.p1) && inDir(r.p2));
+      const filtered = norm.rows.filter(r => inDir(r.p1) && inDir(r.p2));
+      // The roster filter drops prior-season rows, but it must never be the
+      // reason the table is empty. If it removed everything, show the raw rows.
+      const rows = (filtered.length === 0 && norm.rows.length > 0) ? norm.rows : filtered;
+      if (rows !== filtered) console.warn('[standings] roster filter matched nothing in ' + view.teamSheet + '; showing unfiltered rows');
+      sdbg(view.teamSheet, 'raw:', norm.rows.length, 'after roster filter:', filtered.length, 'hasScramble:', norm.hasScramble, norm.rows[0]);
       document.getElementById('s1-table').classList.toggle('no-scramble', !norm.hasScramble);
       tableState.s1.rows = rows;
       assignNaturalRanks(rows, S1_TH_KEYS, S1_DEFAULT_COL);
@@ -1731,7 +1753,10 @@ async function loadStandings() {
       const parts = await Promise.all(view.indSheets.map(fetchSheetCached));
       const lists = parts.map((res, i) => normIndRows(res.table, res.rows, view.indSheets[i]));
       const merged = (lists.length > 1) ? mergeIndSeasons(lists) : (lists[0] || []);
-      const rows = merged.filter(p => inDir(p.name));
+      const filtered = merged.filter(p => inDir(p.name));
+      const rows = (filtered.length === 0 && merged.length > 0) ? merged : filtered;
+      if (rows !== filtered) console.warn('[standings] roster filter matched no players in ' + view.indSheets.join('+') + '; showing unfiltered rows');
+      sdbg(view.indSheets.join('+'), 'raw:', merged.length, 'after roster filter:', filtered.length, merged[0]);
       tableState.ind.rows = rows;
       assignNaturalRanks(rows, IND_TH_KEYS, IND_DEFAULT_COL);
       renderIndRows(sortRowsByCol(rows, IND_TH_KEYS, tableState.ind.sortCol, tableState.ind.sortDir), true);
@@ -2758,8 +2783,11 @@ function autoScaleTables() {
     table.style.marginBottom = '';
     const containerWidth = wrap.offsetWidth;
     const naturalWidth = table.scrollWidth;
+    // A hidden tab reports offsetWidth 0, which would compute scale(0) and make
+    // the table vanish. Leave it unscaled; it gets recomputed when the tab shows.
+    if (containerWidth <= 0 || naturalWidth <= 0) return;
     if (naturalWidth > containerWidth) {
-      const scale = containerWidth / naturalWidth;
+      const scale = Math.max(containerWidth / naturalWidth, 0.4);
       table.style.transformOrigin = 'top left';
       table.style.transform = `scale(${scale})`;
       table.style.marginBottom = `-${table.offsetHeight * (1 - scale)}px`;
@@ -2781,6 +2809,7 @@ function autoScaleScorecard() {
   wrap.style.marginBottom = '';
   const containerWidth = content.offsetWidth;
   const naturalWidth = wrap.scrollWidth;
+  if (containerWidth <= 0 || naturalWidth <= 0) return;
   if (naturalWidth > containerWidth) {
     const scale = containerWidth / naturalWidth;
     wrap.style.transformOrigin = 'top left';
