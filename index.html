@@ -2366,7 +2366,7 @@ const SC_SHEETS = {
   '5_front':  'baker_natl_sc',  '5_back':   'baker_natl_back_sc',
   '6_front':  'braemar_sc',     '6_back':   'braemar_back_sc',
   '7_front':  'pio_creek_sc',   '7_back':   'pio_creek_back_sc',
-  '8_front':  'keller_sc',      '8_back':   'keller_back_sc'
+  '8_front':  'keller2_sc',     '8_back':   'keller2_back_sc'
 };
 
 // Map scorecard sheet → raw score sheet
@@ -2382,7 +2382,9 @@ const SC_RAW_SHEETS = {
   'braemar_sc':         'braemar',
   'braemar_back_sc':    'braemar_back',
   'pio_creek_sc':       'pioneer_creek',
-  'pio_creek_back_sc':  'pio_creek_back_sc'
+  'pio_creek_back_sc':  'pioneer_creek_back',
+  'keller2_sc':         'keller2',
+  'keller2_back_sc':    'keller2_back'
 };
 
 let scCache = { key: null, scRows: null, rawRows: null };
@@ -2764,7 +2766,8 @@ async function loadScorecard(resetMatchup = false) {
     'chaska_town_sc': 'Chaska Town',   'chaska_town_back_sc': 'Chaska Town',
     'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
     'braemar_sc': 'Braemar',           'braemar_back_sc': 'Braemar',
-    'pio_creek_sc': 'Pioneer Creek',   'pio_creek_back_sc': 'Pioneer Creek'
+    'pio_creek_sc': 'Pioneer Creek',   'pio_creek_back_sc': 'Pioneer Creek',
+    'keller2_sc': 'Keller',             'keller2_back_sc': 'Keller'
   };
   const actualCourseName = courseNameMap[sheetName] || sheetName;
   const actualRating = scRows[1] ? (scRows[1][2] || '') : '';
@@ -3049,13 +3052,10 @@ async function loadScramble() {
         const gross18  = grossRow.slice(5, 23).map(v => v !== null && !isNaN(parseFloat(v)) ? parseFloat(v) : null);
         const grossTotal = parseFloat(grossRow[23]) || null;
         const netTotal   = parseFloat(grossRow[24]) || null;
-        let dateStr = '';
-        if (date instanceof Date || (typeof date === 'string' && date.includes('Date'))) {
-          const d = new Date(date);
-          dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric', timeZone:'UTC'});
-        } else if (typeof date === 'string' && date.trim()) {
-          dateStr = date;
-        }
+        // gviz returns dates as "Date(y,m,d)", which new Date() cannot parse.
+        let dateStr = (date instanceof Date)
+          ? date.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric'})
+          : parseSheetDate(date);
         teams.push({ teamName, dateStr, courseHdcp, gross18, grossTotal, netTotal });
       }
     }
