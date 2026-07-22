@@ -1485,14 +1485,17 @@ const IND_COL_SPEC = {
   parAvg:    ['pars avg', 'par avg'],
   bogeyAvg:  ['bogey avg', 'bogeys avg'],
   doubleAvg: ['doubl avg', 'double avg', 'doubles avg'],
-  tripleAvg: ['tri+ avg', 'triples avg']
+  tripleAvg: ['tri+ avg', 'triples avg'],
+  eagles:    ['eagles-', 'eagles'],
+  birdies:   ['birdies']
 };
-const IND_FALLBACKS = {
-  'individual_s1': { matches:1, w:2, l:3, t:4, pts:5, ppm:6, gross:7, net:8, oppnet:9,
-                     birdieAvg:18, parAvg:19, bogeyAvg:20, doubleAvg:21, tripleAvg:22 },
-  'individual_s2': { matches:1, w:2, l:3, t:4, pts:5, ppm:6, gross:7, net:8, oppnet:9,
-                     birdieAvg:16, parAvg:17, bogeyAvg:18, doubleAvg:19, tripleAvg:20 }
-};
+// Both season sheets now share one layout (the Low/High Score columns were
+// removed from individual_s1). Header labels drive resolution regardless; these
+// only apply when gviz returns no labels.
+const IND_LAYOUT = { matches:1, w:2, l:3, t:4, pts:5, ppm:6, gross:7, net:8, oppnet:9,
+                     eagles:10, birdies:11,
+                     birdieAvg:16, parAvg:17, bogeyAvg:18, doubleAvg:19, tripleAvg:20 };
+const IND_FALLBACKS = { 'individual_s1': IND_LAYOUT, 'individual_s2': IND_LAYOUT };
 
 function normTeamRows(table, rows, sheetName) {
   const c = resolveCols(headerLabels(table, rows), TEAM_COL_SPEC, pickTeamFallback(sheetName, rows));
@@ -1534,6 +1537,8 @@ function normIndRows(table, rows, sheetName) {
       w: num(r[c.w]), l: num(r[c.l]), t: num(r[c.t]),
       pts: num(r[c.pts]), ppm: num(r[c.ppm]),
       gross: num(r[c.gross]), net: num(r[c.net]), oppnet: num(r[c.oppnet]),
+      eagles: num(r[c.eagles]),
+      birdies: num(r[c.birdies]),
       birdieAvg: num(r[c.birdieAvg]),
       parAvg: num(r[c.parAvg]),
       bogeyAvg: num(r[c.bogeyAvg]),
@@ -1565,6 +1570,8 @@ function mergeIndSeasons(lists) {
         l: (cur.l || 0) + (p.l || 0),
         t: (cur.t || 0) + (p.t || 0),
         pts: (cur.pts || 0) + (p.pts || 0),
+        eagles:  (cur.eagles || 0) + (p.eagles || 0),
+        birdies: (cur.birdies || 0) + (p.birdies || 0),
         gross:     wavg(cur.gross, p.gross),
         net:       wavg(cur.net, p.net),
         oppnet:    wavg(cur.oppnet, p.oppnet),
@@ -3323,9 +3330,10 @@ function normName(n) {
 
 async function fetchHistory() {
   if (HISTORY) return HISTORY;
-  const [staticRes, indivT, s1T, s2T, weeklyT, dirT, hdcpT] = await Promise.all([
+  const [staticRes, indivT, indivT2, s1T, s2T, weeklyT, dirT, hdcpT] = await Promise.all([
     fetch('data/history.json').then(r => r.json()),
     fetchSheet('individual_s1').catch(() => null),
+    fetchSheet('individual_s2').catch(() => null),
     fetchSheet('season1').catch(() => null),
     fetchSheet('season2').catch(() => null),
     fetchSheet('weekly_results').catch(() => null),
@@ -3372,15 +3380,21 @@ async function fetchHistory() {
 
   // --- live individual season stats, filtered to actual roster ---
   const live_individual = [];
-  if (indivT) {
-    for (const r of tableRows(indivT)) {
-      const name = normName(String(r[0] || '').trim());
-      if (!name || name === 'Name' || !roster.includes(name)) continue;
-      const n = v => { const x = parseFloat(v); return isNaN(x) ? null : x; };
+  // Both halves of the season, merged the same way the standings tab does it:
+  // counts add, rates re-weight by matches. Columns resolve from the sheet
+  // header, so the Eagles/Birdies columns can't drift onto Pars/Bogeys again.
+  {
+    const lists = [];
+    if (indivT)  lists.push(normIndRows(indivT,  tableRows(indivT),  'individual_s1'));
+    if (indivT2) lists.push(normIndRows(indivT2, tableRows(indivT2), 'individual_s2'));
+    const merged = (lists.length > 1) ? mergeIndSeasons(lists) : (lists[0] || []);
+    for (const p of merged) {
+      const name = normName(p.name);
+      if (!name || !roster.includes(name)) continue;
       live_individual.push({
-        name, matches: n(r[1]), w: n(r[2]), l: n(r[3]), t: n(r[4]), pts: n(r[5]),
-        ptsMatch: n(r[6]), grossAvg: n(r[7]), netAvg: n(r[8]),
-        eagles: n(r[12]), birdies: n(r[13])
+        name, matches: p.matches, w: p.w, l: p.l, t: p.t, pts: p.pts,
+        ptsMatch: p.ppm, grossAvg: p.gross, netAvg: p.net,
+        eagles: p.eagles, birdies: p.birdies
       });
     }
   }
@@ -3889,7 +3903,7 @@ function renderAllTime(h) {
 
   html += `<div class="section-title"><span class="dot"></span>All-Time Individual Records</div>
   <div class="table-wrap"><table id="alltime-table"><thead><tr>
-    <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Avg Hdcp</th><th>Eagles</th>
+    <th>#</th><th>Player</th><th>Seasons</th><th>Matches</th><th>W</th><th>L</th><th>T</th><th>Pts</th><th>Pts/Match</th><th>Gross Avg</th><th>Net Avg</th><th>Avg Hdcp</th><th>Birdies</th>
   </tr></thead><tbody id="alltime-body"></tbody></table></div>`;
 
   // Rivalries: merged h2h across base + live
@@ -3956,7 +3970,7 @@ function renderAllTime(h) {
 }
 
 /* ALL-TIME TABLE SORTING */
-const ALLTIME_KEYS = [null, 'name', 'seasonsCount', 'matches', 'w', 'l', 't', 'pts', 'ptsMatch', 'grossAvg', 'netAvg', 'avgHdcp', 'eagles'];
+const ALLTIME_KEYS = [null, 'name', 'seasonsCount', 'matches', 'w', 'l', 't', 'pts', 'ptsMatch', 'grossAvg', 'netAvg', 'avgHdcp', 'birdies'];
 const allTimeState = { sortCol: 3, sortDir: 'desc' }; // default: Matches desc
 
 function renderAllTimeRows(players) {
@@ -3968,7 +3982,7 @@ function renderAllTimeRows(players) {
     <td style="font-size:11px;color:var(--mid-gray)">${p.seasons.join(', ')}</td>
     <td>${p.matches}</td><td>${p.w}</td><td>${p.l}</td><td>${p.t}</td>
     <td><strong>${fmt1(p.pts)}</strong></td><td>${fmt2(p.ptsMatch)}</td>
-    <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${fmt1(p.avgHdcp)}</td><td>${p.eagles || 0}</td>
+    <td>${fmt1(p.grossAvg)}</td><td>${fmt1(p.netAvg)}</td><td>${fmt1(p.avgHdcp)}</td><td>${p.birdies || 0}</td>
   </tr>`).join('');
 }
 
