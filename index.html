@@ -775,6 +775,25 @@
   }
   .results-season-header + .results-week-section { margin-top: 0; }
   .results-season-header:not(:first-child) { margin-top: 2.5rem; }
+  .results-nine-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green-mid);
+    margin: 0 0 8px 2px;
+    max-width: 800px;
+  }
+  .results-nine-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .results-grid + .results-nine-label { margin-top: 1.25rem; }
   .results-week-section { margin-bottom: 2.5rem; }
   .results-week-header {
     display: flex; align-items: center; gap: 12px;
@@ -970,7 +989,7 @@
           <option value="5">Week 5 — Baker National</option>
           <option value="6">Week 6 — Braemar</option>
           <option value="7">Week 7 — Pioneer Creek</option>
-          <option value="8">Week 8 — Keller</option>
+          <option value="8">Week 8 — Keller 2</option>
         </select>
       </div>
       <div>
@@ -1870,7 +1889,7 @@ const summerSchedule = [
     ['Anderson & Bornhorst','Bower & Petrovskis'],
     ['Gallagher & Fischer','Wesling & Nelson']
   ]},
-  { week: 8, course: 'Keller', matchups: [
+  { week: 8, course: 'Keller 2', matchups: [
     ['Hopkins & Mugford','Oakman & Simpson'],
     ['Leadley & Mullins','Anderson & Bornhorst'],
     ['Archer & Heinsch','Gallagher & Fischer'],
@@ -2222,20 +2241,45 @@ async function loadResults() {
       return;
     }
 
-    // Round dates come from the scorecard sheets. Read both nines — a week can
-    // be split across them (week 5 was played on the back) — and key by player.
+    // Round dates come from the scorecard sheets; which nine was actually played
+    // comes from the raw score sheets. The scorecard sheets carry a date on both
+    // nines regardless of where the round happened, so only the presence of real
+    // hole scores distinguishes them.
     const weekDates = {};
+    const weekNines = {};
     await Promise.all(displayWeeks.map(async w => {
-      const sheets = [SC_SHEETS[w.weekNum + '_front'], SC_SHEETS[w.weekNum + '_back']]
-        .filter((s, i, a) => s && a.indexOf(s) === i);
+      const played = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
+      weekDates[w.weekNum] = {};
+      weekNines[w.weekNum] = {};
+      if (!played) return;   // nothing to label, and saves four fetches per week
+
       const byPlayer = {};
-      await Promise.all(sheets.map(async name => {
-        try {
-          const t = await fetchSheet(name);
-          scorecardDatesByPlayer(tableRows(t), byPlayer);
-        } catch (e) { /* sheet may not exist yet for unplayed weeks */ }
+      const nineOf = {};
+
+      await Promise.all(['front', 'back'].map(async side => {
+        const scName = SC_SHEETS[w.weekNum + '_' + side];
+        if (!scName) return;
+        const rawName = SC_RAW_SHEETS[scName];
+        await Promise.all([
+          (async () => {
+            try { scorecardDatesByPlayer(tableRows(await fetchSheet(scName)), byPlayer); }
+            catch (e) { /* sheet may not exist yet */ }
+          })(),
+          (async () => {
+            if (!rawName) return;
+            try {
+              const scores = parseRawScores(tableRows(await fetchSheet(rawName)));
+              for (const nm in scores) {
+                const g = scores[nm] && scores[nm].gross;
+                if (g && g.some(v => v !== null && !isNaN(v))) nineOf[nm] = side;
+              }
+            } catch (e) { /* raw sheet may not exist yet */ }
+          })()
+        ]);
       }));
+
       weekDates[w.weekNum] = byPlayer;
+      weekNines[w.weekNum] = nineOf;
     }));
 
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
@@ -2274,6 +2318,7 @@ async function loadResults() {
     for (const w of displayWeeks) {
       const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
       const dates = weekDates[w.weekNum] || {};
+      const nines = weekNines[w.weekNum] || {};
 
       const season = w.weekNum <= 4 ? 'Spring Season' : 'Summer Season';
       if (season !== lastSeason) {
@@ -2287,21 +2332,20 @@ async function loadResults() {
         </div>`;
 
       if (anyPlayed) {
-        html += `<div class="results-grid">`;
-        let cardIdx = 0;
+        const cards = [];
         for (let k = 0; k < w.matchups.length; k += 2) {
           const ma = w.matchups[k];
           const mb = w.matchups[k + 1];
           if (!ma) continue;
           const hasData = ma.p1pts !== null || ma.p2pts !== null ||
                           (mb && (mb.p1pts !== null || mb.p2pts !== null));
-          if (!hasData) { cardIdx++; continue; }
-          // Look the date up by the players in this card rather than by position,
-          // so front/back splits and missing blocks can't shift dates onto the
-          // wrong matchup.
-          const dateStr = [ma.p1name, ma.p2name, mb && mb.p1name, mb && mb.p2name]
-            .map(n => (n ? dates[n] : '')).find(Boolean) || '';
-          html += `<div class="results-card">
+          if (!hasData) continue;
+          // Date and nine are both looked up by the players in this card rather
+          // than by position, so a week split across nines still lines up.
+          const names = [ma.p1name, ma.p2name, mb && mb.p1name, mb && mb.p2name].filter(Boolean);
+          const dateStr = names.map(n => dates[n]).find(Boolean) || '';
+          const nine    = names.map(n => nines[n]).find(Boolean) || '';
+          cards.push({ nine, html: `<div class="results-card">
             <div class="results-card-header">
               <span>Player</span><span>Gross</span><span class="rc-net-col">Net</span><span class="pts-head">Pts</span>
               <span class="vs-head">·</span>
@@ -2309,10 +2353,18 @@ async function loadResults() {
             </div>
             ${renderMatchupRow(ma.p1name, ma.p1pts, ma.p1gross, ma.p1net, ma.p2name, ma.p2pts, ma.p2gross, ma.p2net)}
             ${mb ? renderMatchupRow(mb.p1name, mb.p1pts, mb.p1gross, mb.p1net, mb.p2name, mb.p2pts, mb.p2gross, mb.p2net) : ''}
-          </div>`;
-          cardIdx++;
+          </div>` });
         }
-        html += `</div>`;
+
+        // Group by nine. Cards whose nine can't be determined render last with
+        // no heading rather than being hidden.
+        const NINE_LABELS = { front: 'Front 9', back: 'Back 9' };
+        for (const side of ['front', 'back', '']) {
+          const group = cards.filter(c => c.nine === side);
+          if (!group.length) continue;
+          if (side) html += `<div class="results-nine-label">${NINE_LABELS[side]}</div>`;
+          html += `<div class="results-grid">${group.map(c => c.html).join('')}</div>`;
+        }
       }
 
       html += `</div>`;
@@ -2767,7 +2819,7 @@ async function loadScorecard(resetMatchup = false) {
     'baker_natl_sc': 'Baker National', 'baker_natl_back_sc': 'Baker National',
     'braemar_sc': 'Braemar',           'braemar_back_sc': 'Braemar',
     'pio_creek_sc': 'Pioneer Creek',   'pio_creek_back_sc': 'Pioneer Creek',
-    'keller2_sc': 'Keller',             'keller2_back_sc': 'Keller'
+    'keller2_sc': 'Keller 2',           'keller2_back_sc': 'Keller 2'
   };
   const actualCourseName = courseNameMap[sheetName] || sheetName;
   const actualRating = scRows[1] ? (scRows[1][2] || '') : '';
