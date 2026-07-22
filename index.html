@@ -207,6 +207,39 @@
   thead th:first-child { border-radius: 6px 0 0 0; text-align: left; }
   thead th:nth-child(2) { text-align: left; }
   thead th:last-child { border-radius: 0 6px 0 0; }
+  /* SEASON SEGMENTED CONTROL */
+  .seg-control {
+    display: inline-flex;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    gap: 2px;
+    margin-bottom: 1.5rem;
+  }
+  .seg-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mid-gray);
+    background: none;
+    border: none;
+    border-radius: 100px;
+    padding: 7px 18px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s, color 0.18s;
+  }
+  .seg-btn:hover { color: var(--green-dark); }
+  .seg-btn.active { background: var(--green-dark); color: var(--gold-light); }
+  #s1-table.no-scramble .standings-scramble { display: none; }
+  @media (max-width: 600px) {
+    .seg-control { display: flex; width: 100%; }
+    .seg-btn { flex: 1; padding: 7px 8px; font-size: 11px; letter-spacing: 0.02em; }
+  }
+
   .sortable-th { cursor: pointer; user-select: none; transition: background 0.15s; white-space: nowrap; }
   .sortable-th:hover { background: var(--green-mid); }
   .sortable-th .sort-arrow { font-size: 9px; color: var(--gold); margin-left: 2px; }
@@ -843,7 +876,13 @@
       <div class="stat-card"><div class="stat-value">1</div><div style="margin-top:4px"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/><path d="M6 2h12v7a6 6 0 0 1-12 0V2z"/><path d="M12 15v4"/><path d="M8 19h8"/><path d="M9 15a6 6 0 0 0 6 0"/></svg></div></div>
     </div>
 
-    <div class="section-title"><span class="dot"></span>Spring Season Standings</div>
+    <div class="seg-control" id="season-seg" aria-label="Season view">
+      <button class="seg-btn" data-view="spring">Spring</button>
+      <button class="seg-btn" data-view="summer">Summer</button>
+      <button class="seg-btn" data-view="both">Spring+Summer</button>
+    </div>
+
+    <div class="section-title"><span class="dot"></span><span id="s1-title">Spring Standings</span></div>
     <div class="table-wrap">
       <table id="s1-table">
         <thead><tr>
@@ -855,7 +894,7 @@
       </table>
     </div>
 
-    <div class="section-title" style="margin-top:2rem"><span class="dot"></span>Individual Stats — Spring Season</div>
+    <div class="section-title" style="margin-top:2rem"><span class="dot"></span><span id="ind-title">Individual Stats — Spring</span></div>
     <div class="table-wrap">
       <table id="ind-table">
         <thead><tr>
@@ -1254,26 +1293,270 @@ function teamNameFromRow(r) {
   return teamNames()[parseInt(r[0])] || `Team ${r[0]}`;
 }
 
-// Store raw rows + current sort state per table, so columns can be re-sorted in place
+/* ================== STANDINGS — SEASON VIEWS ==================
+   Three views share one pair of tables. The underlying sheets do NOT share a
+   column layout (season2 has no Scramble column; individual_s1 carries extra
+   Low/High Score columns that shift its count columns two to the right), so
+   every column index is resolved from the sheet's own header labels at load
+   time, with a hardcoded per-sheet fallback if gviz returns no labels.
+   Rows are normalized into objects before rendering, which is what makes the
+   Spring+Summer merge simple arithmetic instead of index juggling. */
+
+const SEASON_VIEWS = {
+  spring: { label: 'Spring',        teamSheet: 'season1',   indSheets: ['individual_s1'] },
+  summer: { label: 'Summer',        teamSheet: 'season2',   indSheets: ['individual_s2'] },
+  both:   { label: 'Spring+Summer', teamSheet: 'season1&2', indSheets: ['individual_s1', 'individual_s2'] }
+};
+
+// Default view: Spring through July 31, Summer from Aug 1 onward.
+function defaultSeasonView() {
+  return (new Date()).getMonth() < 7 ? 'spring' : 'summer';
+}
+let seasonView = defaultSeasonView();
+
+function num(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (s === '' || s.charAt(0) === '#') return null;   // #DIV/0!, #N/A, #REF!
+  }
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+// gviz normally exposes the header row via table.cols[].label. When it treats
+// the header as data instead, fall back to reading row 0.
+function headerLabels(table, rows) {
+  let labels = (table && table.cols)
+    ? table.cols.map(c => (c && c.label) ? String(c.label) : '')
+    : [];
+  if (!labels.some(l => l && l.trim())) {
+    const first = (rows && rows[0]) ? rows[0] : [];
+    const looksLikeHeader = first.some(v => typeof v === 'string' && /^(name|team)$/i.test(String(v).trim()));
+    if (looksLikeHeader) labels = first.map(v => (v === null || v === undefined) ? '' : String(v));
+  }
+  return labels.map(l => String(l).trim().toLowerCase());
+}
+
+// Exact label match first across all aliases, then a prefix match, then the
+// per-sheet fallback index. A key with no match anywhere resolves to null.
+function resolveCols(labels, spec, fallback) {
+  const map = {};
+  for (const key in spec) {
+    const aliases = spec[key];
+    let idx = -1;
+    for (const a of aliases) {
+      idx = labels.indexOf(a.toLowerCase());
+      if (idx !== -1) break;
+    }
+    if (idx === -1) {
+      for (const a of aliases) {
+        idx = labels.findIndex(l => l && l.indexOf(a.toLowerCase()) === 0);
+        if (idx !== -1) break;
+      }
+    }
+    map[key] = (idx !== -1) ? idx
+             : (fallback && fallback[key] !== undefined ? fallback[key] : null);
+  }
+  return map;
+}
+
+const TEAM_COL_SPEC = {
+  team:    ['team'],
+  p1:      ['player1'],
+  p2:      ['player2'],
+  matches: ['matches'],
+  w:       ['wins'],
+  l:       ['losses', 'loss'],
+  t:       ['ties'],
+  scr:     ['scramble points', 'scramble'],
+  pts:     ['total points'],
+  ppm:     ['points/match']
+};
+const TEAM_FALLBACKS = {
+  'season1':   { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:7,    pts:8, ppm:9  },
+  'season2':   { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:null, pts:7, ppm:8  },
+  'season1&2': { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:8,    pts:9, ppm:10 }
+};
+
+const IND_COL_SPEC = {
+  matches:   ['matches'],
+  w:         ['wins'],
+  l:         ['loss', 'losses'],
+  t:         ['ties'],
+  pts:       ['points'],
+  ppm:       ['points/match'],
+  gross:     ['gross avg'],
+  net:       ['net avg'],
+  oppnet:    ['matchup net'],
+  birdieAvg: ['birdi- avg', 'birdie- avg', 'birdies avg'],
+  parAvg:    ['pars avg', 'par avg'],
+  bogeyAvg:  ['bogey avg', 'bogeys avg'],
+  doubleAvg: ['doubl avg', 'double avg', 'doubles avg'],
+  tripleAvg: ['tri+ avg', 'triples avg']
+};
+const IND_FALLBACKS = {
+  'individual_s1': { matches:1, w:2, l:3, t:4, pts:5, ppm:6, gross:7, net:8, oppnet:9,
+                     birdieAvg:18, parAvg:19, bogeyAvg:20, doubleAvg:21, tripleAvg:22 },
+  'individual_s2': { matches:1, w:2, l:3, t:4, pts:5, ppm:6, gross:7, net:8, oppnet:9,
+                     birdieAvg:16, parAvg:17, bogeyAvg:18, doubleAvg:19, tripleAvg:20 }
+};
+
+function normTeamRows(table, rows, sheetName) {
+  const c = resolveCols(headerLabels(table, rows), TEAM_COL_SPEC, TEAM_FALLBACKS[sheetName]);
+  const out = [];
+  for (const r of rows) {
+    if (!r || !r.length) continue;
+    const teamNum = num(r[c.team]);
+    if (teamNum === null) continue;               // drops header + blank rows
+    const p1 = r[c.p1] ? String(r[c.p1]).trim() : '';
+    const p2 = r[c.p2] ? String(r[c.p2]).trim() : '';
+    const ln1 = lastName(p1), ln2 = lastName(p2);
+    out.push({
+      teamNum: teamNum, p1: p1, p2: p2,
+      name: (ln1 && ln2) ? (ln1 + ' & ' + ln2) : (teamNames()[teamNum] || 'Team ' + teamNum),
+      matches: num(r[c.matches]),
+      w: num(r[c.w]), l: num(r[c.l]), t: num(r[c.t]),
+      scr: (c.scr === null || c.scr === undefined) ? null : num(r[c.scr]),
+      pts: num(r[c.pts]),
+      ppm: num(r[c.ppm])
+    });
+  }
+  return { rows: out, hasScramble: (c.scr !== null && c.scr !== undefined) };
+}
+
+function normIndRows(table, rows, sheetName) {
+  const c = resolveCols(headerLabels(table, rows), IND_COL_SPEC, IND_FALLBACKS[sheetName]);
+  const out = [];
+  for (const r of rows) {
+    if (!r || !r.length) continue;
+    const name = r[0] ? String(r[0]).trim() : '';
+    if (!name || name.length < 3 || /^name$/i.test(name)) continue;
+    const dA = num(r[c.doubleAvg]), tA = num(r[c.tripleAvg]);
+    out.push({
+      name: name,
+      matches: num(r[c.matches]) || 0,
+      w: num(r[c.w]), l: num(r[c.l]), t: num(r[c.t]),
+      pts: num(r[c.pts]), ppm: num(r[c.ppm]),
+      gross: num(r[c.gross]), net: num(r[c.net]), oppnet: num(r[c.oppnet]),
+      birdieAvg: num(r[c.birdieAvg]),
+      parAvg: num(r[c.parAvg]),
+      bogeyAvg: num(r[c.bogeyAvg]),
+      doubleAvg: (dA === null && tA === null) ? null : ((dA || 0) + (tA || 0))
+    });
+  }
+  return out;
+}
+
+// Counting stats add; rate stats are re-averaged weighted by matches played,
+// which is exact regardless of how each season sheet defines its own average.
+function mergeIndSeasons(lists) {
+  const byName = new Map();
+  for (const list of lists) {
+    for (const p of list) {
+      const cur = byName.get(p.name);
+      if (!cur) { byName.set(p.name, Object.assign({}, p)); continue; }
+      const m1 = cur.matches || 0, m2 = p.matches || 0, mt = m1 + m2;
+      const wavg = (a, b) => {
+        if (a === null && b === null) return null;
+        if (a === null || m1 === 0) return b;
+        if (b === null || m2 === 0) return a;
+        return mt > 0 ? ((a * m1) + (b * m2)) / mt : null;
+      };
+      const merged = {
+        name: p.name,
+        matches: mt,
+        w: (cur.w || 0) + (p.w || 0),
+        l: (cur.l || 0) + (p.l || 0),
+        t: (cur.t || 0) + (p.t || 0),
+        pts: (cur.pts || 0) + (p.pts || 0),
+        gross:     wavg(cur.gross, p.gross),
+        net:       wavg(cur.net, p.net),
+        oppnet:    wavg(cur.oppnet, p.oppnet),
+        birdieAvg: wavg(cur.birdieAvg, p.birdieAvg),
+        parAvg:    wavg(cur.parAvg, p.parAvg),
+        bogeyAvg:  wavg(cur.bogeyAvg, p.bogeyAvg),
+        doubleAvg: wavg(cur.doubleAvg, p.doubleAvg)
+      };
+      merged.ppm = mt > 0 ? merged.pts / mt : null;
+      byName.set(p.name, merged);
+    }
+  }
+  return Array.from(byName.values());
+}
+
+// Roster guard: prior-season rows linger in these sheets, so anything whose
+// players aren't in the live directory is dropped. If the directory itself
+// fails to load, the filter is skipped rather than blanking the page.
+let directoryNames = null;
+async function getDirectoryNames() {
+  if (directoryNames !== null) return directoryNames;
+  try {
+    const t = await fetchSheet('league_directory');
+    const set = new Set();
+    tableRows(t).forEach(r => {
+      const n = r[1] ? String(r[1]).trim() : '';
+      if (n && !/^name$/i.test(n)) set.add(n);
+    });
+    directoryNames = (set.size >= 8) ? set : new Set();
+  } catch (e) {
+    directoryNames = new Set();
+  }
+  return directoryNames;
+}
+
+const standingsCache = {};
+function fetchSheetCached(name) {
+  if (!standingsCache[name]) {
+    standingsCache[name] = fetchSheet(name).then(t => ({ table: t, rows: tableRows(t) }));
+  }
+  return standingsCache[name];
+}
+
+/* ---- sort state + rendering ---- */
+
 const tableState = {
   s1:  { rows: [], sortCol: 7, sortDir: 'desc' },   // default: Pts/Match desc (th index 7)
   ind: { rows: [], sortCol: 4, sortDir: 'desc' }    // default: Pts/Match desc (th index 4)
 };
 
-// Each row gets a fixed "place" (natural standings rank) computed once from the
-// default sort order, stored as a property on the row array itself. This way the
-// displayed rank number and medal stay attached to the TEAM/PLAYER, not to
-// whatever position they land in under the current column sort.
-function assignNaturalRanks(rows, colMap, defaultColIdx, isS1) {
-  const naturalOrder = sortRowsByCol(rows, colMap, defaultColIdx, 'desc', isS1);
-  naturalOrder.forEach((r, i) => { r._place = i + 1; });
+// th position -> normalized row key
+const S1_TH_KEYS  = [null, 'name', 'w', 'l', 't', 'scr', 'pts', 'ppm'];
+const IND_TH_KEYS = ['name', 'w', 'l', 't', 'ppm', 'gross', 'net', 'oppnet',
+                     'birdieAvg', 'parAvg', 'bogeyAvg', 'doubleAvg'];
+const S1_DEFAULT_COL  = 7;
+const IND_DEFAULT_COL = 4;
+
+function sortRowsByCol(rows, keys, colIdx, dir) {
+  const key = keys[colIdx];
+  const sorted = rows.slice();
+  if (!key) return sorted;
+  sorted.sort((a, b) => {
+    if (key === 'name') {
+      const cmp = (a.name || '').localeCompare(b.name || '');
+      return dir === 'asc' ? cmp : -cmp;
+    }
+    let av = a[key], bv = b[key];
+    av = (av === null || av === undefined || isNaN(av)) ? -Infinity : av;
+    bv = (bv === null || bv === undefined || isNaN(bv)) ? -Infinity : bv;
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return sorted;
+}
+
+// Each row keeps a fixed "place" from the default sort, so the rank number and
+// medal stay attached to the team/player no matter how the table is re-sorted.
+function assignNaturalRanks(rows, keys, defaultColIdx) {
+  sortRowsByCol(rows, keys, defaultColIdx, 'desc').forEach((r, i) => { r._place = i + 1; });
   return rows;
 }
 
 function renderS1Rows(rows, showMedals) {
   const tbody = document.getElementById('s1-body');
-  if (rows.length === 0 || rows.every(r => parseFloat(r[8] || 0) === 0)) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">Spring Season has not started yet — check back after Week 1!</td></tr>';
+  const label = SEASON_VIEWS[seasonView].label;
+  if (rows.length === 0 || rows.every(r => (r.pts || 0) === 0)) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No ' +
+      label + ' standings yet — check back once matches have been played.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r) => {
@@ -1287,13 +1570,13 @@ function renderS1Rows(rows, showMedals) {
     const nameStyle = isTop3 ? 'font-weight:600;font-size:14px;' : '';
     return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
       <td class="${isTop3 ? rankClass(rankIdx) : 'rank-cell'}">${rankDisplay}</td>
-      <td class="team-name" style="${nameStyle}">${teamNameFromRow(r)}</td>
-      <td>${fmtPts(r[4])}</td>
-      <td>${fmtPts(r[5])}</td>
-      <td class="standings-t-col">${fmtPts(r[6])}</td>
-      <td class="standings-scramble">${fmtPts(r[7])}</td>
-      <td><strong>${fmtPts(r[8])}</strong></td>
-      <td class="standings-pts-match">${fmtPts(r[9])}</td>
+      <td class="team-name" style="${nameStyle}">${r.name}</td>
+      <td>${fmtPts(r.w)}</td>
+      <td>${fmtPts(r.l)}</td>
+      <td class="standings-t-col">${fmtPts(r.t)}</td>
+      <td class="standings-scramble">${fmtPts(r.scr)}</td>
+      <td><strong>${fmtPts(r.pts)}</strong></td>
+      <td class="standings-pts-match">${fmtPts(r.ppm)}</td>
     </tr>`;
   }).join('');
   setTimeout(autoScaleTables, 300);
@@ -1301,8 +1584,10 @@ function renderS1Rows(rows, showMedals) {
 
 function renderIndRows(rows, showMedals) {
   const tbody = document.getElementById('ind-body');
-  if (rows.length === 0 || rows.every(r => parseFloat(r[5] || 0) === 0)) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No individual stats yet — check back after Spring Season begins!</td></tr>';
+  const label = SEASON_VIEWS[seasonView].label;
+  if (rows.length === 0 || rows.every(r => (r.pts || 0) === 0)) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:2rem; color:var(--mid-gray); font-style:italic;">No ' +
+      label + ' individual stats yet — check back once matches have been played.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r) => {
@@ -1310,49 +1595,21 @@ function renderIndRows(rows, showMedals) {
     const isTop3 = showMedals && place <= 3 && place > 0;
     const nameStyle = isTop3 ? 'font-weight:600;' : '';
     return `<tr style="${isTop3 ? 'background:rgba(201,168,76,0.04);' : ''}">
-    <td class="team-name" style="${nameStyle}">${r[0]}</td>
-    <td>${fmtPts(r[2])}</td>
-    <td>${fmtPts(r[3])}</td>
-    <td class="standings-t-col">${fmtPts(r[4])}</td>
-    <td>${fmtPts(r[6])}</td>
-    <td class="ind-gross">${fmtPts(r[7])}</td>
-    <td class="ind-net">${fmtPts(r[8])}</td>
-    <td class="ind-oppnet">${fmtPts(r[9])}</td>
-    <td class="ind-birdie">${fmtAvg(r[18])}</td>
-    <td class="ind-par">${fmtAvg(r[19])}</td>
-    <td class="ind-bogey">${fmtAvg(r[20])}</td>
-    <td class="ind-double">${fmtAvg((parseFloat(r[21])||0) + (parseFloat(r[22])||0))}</td>
-  </tr>`;
+      <td class="team-name" style="${nameStyle}">${r.name}</td>
+      <td>${fmtPts(r.w)}</td>
+      <td>${fmtPts(r.l)}</td>
+      <td class="standings-t-col">${fmtPts(r.t)}</td>
+      <td>${fmtPts(r.ppm)}</td>
+      <td class="ind-gross">${fmtPts(r.gross)}</td>
+      <td class="ind-net">${fmtPts(r.net)}</td>
+      <td class="ind-oppnet">${fmtPts(r.oppnet)}</td>
+      <td class="ind-birdie">${fmtAvg(r.birdieAvg)}</td>
+      <td class="ind-par">${fmtAvg(r.parAvg)}</td>
+      <td class="ind-bogey">${fmtAvg(r.bogeyAvg)}</td>
+      <td class="ind-double">${fmtAvg(r.doubleAvg)}</td>
+    </tr>`;
   }).join('');
   setTimeout(autoScaleTables, 300);
-}
-
-// Column index in the underlying row data for each visible <th> position (0-based, matches <th> order)
-// s1-table th order: #, Team, W, L, T, 2-Man, Pts, Pts/Match -> row indices
-const S1_COL_MAP  = [null, 'name', 4, 5, 6, 7, 8, 9];
-// ind-table th order: Player, W, L, T, Pts/Match, Gross, Net, OppNet, Birdie, Par, Bogey, Double+
-const IND_COL_MAP = ['name', 2, 3, 4, 6, 7, 8, 9, 18, 19, 20, 'double'];
-
-function sortRowsByCol(rows, colMap, colIdx, dir, isS1) {
-  const key = colMap[colIdx];
-  const sorted = [...rows];
-  sorted.sort((a, b) => {
-    let av, bv;
-    if (key === 'name') {
-      av = (isS1 ? teamNameFromRow(a) : a[0]) || '';
-      bv = (isS1 ? teamNameFromRow(b) : b[0]) || '';
-      const cmp = av.localeCompare(bv);
-      return dir === 'asc' ? cmp : -cmp;
-    } else if (key === 'double') {
-      av = (parseFloat(a[21])||0) + (parseFloat(a[22])||0);
-      bv = (parseFloat(b[21])||0) + (parseFloat(b[22])||0);
-    } else {
-      av = parseFloat(a[key]); if (isNaN(av)) av = -Infinity;
-      bv = parseFloat(b[key]); if (isNaN(bv)) bv = -Infinity;
-    }
-    return dir === 'asc' ? av - bv : bv - av;
-  });
-  return sorted;
 }
 
 function updateSortIndicators(tableId, colIdx, dir) {
@@ -1370,25 +1627,15 @@ function updateSortIndicators(tableId, colIdx, dir) {
   });
 }
 
-// Medals (gold/silver/bronze) only make sense when the table is in its natural
-// "standings" order — Pts/Match desc for both teams and individuals.
-// Any other sort column/direction shows plain numeric rank instead, but the
-// rank NUMBER itself stays fixed to each row's natural place (see _place).
-const S1_DEFAULT_COL  = 7; // Pts/Match column (th index)
-const IND_DEFAULT_COL = 4; // Pts/Match column (th index)
-
 function sortS1Table(colIdx) {
   const state = tableState.s1;
   if (state.sortCol === colIdx) {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
   } else {
     state.sortCol = colIdx;
-    state.sortDir = (colIdx === 1) ? 'asc' : 'desc'; // name col index 1 defaults asc
+    state.sortDir = (colIdx === 1) ? 'asc' : 'desc';   // team-name column defaults asc
   }
-  const sorted = sortRowsByCol(state.rows, S1_COL_MAP, colIdx, state.sortDir, true);
-  // Medals are tied to each team's fixed natural rank (_place), not the current
-  // sort column, so they stay visible no matter how the table is sorted.
-  renderS1Rows(sorted, true);
+  renderS1Rows(sortRowsByCol(state.rows, S1_TH_KEYS, colIdx, state.sortDir), true);
   updateSortIndicators('s1-table', colIdx, state.sortDir);
 }
 
@@ -1398,18 +1645,19 @@ function sortIndTable(colIdx) {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
   } else {
     state.sortCol = colIdx;
-    state.sortDir = (colIdx === 0 || [5,6,7].includes(colIdx)) ? 'asc' : 'desc'; // name + gross/net/oppnet default asc (lower is better)
+    // name + gross/net/opp-net default ascending (lower is better)
+    state.sortDir = (colIdx === 0 || [5, 6, 7].includes(colIdx)) ? 'asc' : 'desc';
   }
-  const sorted = sortRowsByCol(state.rows, IND_COL_MAP, colIdx, state.sortDir, false);
-  renderIndRows(sorted, true);
+  renderIndRows(sortRowsByCol(state.rows, IND_TH_KEYS, colIdx, state.sortDir), true);
   updateSortIndicators('ind-table', colIdx, state.sortDir);
 }
 
+// Guarded so repeated view switches don't stack duplicate click listeners.
 function attachSortHandlers(tableId, sortFn, skipCols) {
   const table = document.getElementById(tableId);
-  if (!table) return;
-  const ths = table.querySelectorAll('thead th');
-  ths.forEach((th, i) => {
+  if (!table || table.dataset.sortBound) return;
+  table.dataset.sortBound = '1';
+  table.querySelectorAll('thead th').forEach((th, i) => {
     if (skipCols && skipCols.includes(i)) return;
     th.dataset.label = th.textContent;
     th.classList.add('sortable-th');
@@ -1417,36 +1665,70 @@ function attachSortHandlers(tableId, sortFn, skipCols) {
   });
 }
 
+/* ---- loader ---- */
+
 async function loadStandings() {
-  try {
-    const table = await fetchSheet('season1');
-    const rows = tableRows(table).filter(r => r[0] && !isNaN(parseFloat(r[0])));
-    tableState.s1.rows = rows;
-    assignNaturalRanks(rows, S1_COL_MAP, S1_DEFAULT_COL, true);
-    const sorted = sortRowsByCol(rows, S1_COL_MAP, tableState.s1.sortCol, tableState.s1.sortDir, true);
-    renderS1Rows(sorted, true);
-    attachSortHandlers('s1-table', sortS1Table, [0]);
-    updateSortIndicators('s1-table', tableState.s1.sortCol, tableState.s1.sortDir);
-  } catch(e) {
-    document.getElementById('s1-body').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
-  }
+  const view = SEASON_VIEWS[seasonView];
+  document.getElementById('s1-title').textContent  = view.label + ' Standings';
+  document.getElementById('ind-title').textContent = 'Individual Stats — ' + view.label;
+  document.querySelectorAll('#season-seg .seg-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === seasonView);
+  });
+
+  const dirNames = await getDirectoryNames();
+  const inDir = n => (dirNames.size === 0) || dirNames.has(n);
+
+  const teamPromise = (async () => {
+    try {
+      const res = await fetchSheetCached(view.teamSheet);
+      const norm = normTeamRows(res.table, res.rows, view.teamSheet);
+      const rows = norm.rows.filter(r => inDir(r.p1) && inDir(r.p2));
+      document.getElementById('s1-table').classList.toggle('no-scramble', !norm.hasScramble);
+      tableState.s1.rows = rows;
+      assignNaturalRanks(rows, S1_TH_KEYS, S1_DEFAULT_COL);
+      renderS1Rows(sortRowsByCol(rows, S1_TH_KEYS, tableState.s1.sortCol, tableState.s1.sortDir), true);
+      attachSortHandlers('s1-table', sortS1Table, [0]);
+      updateSortIndicators('s1-table', tableState.s1.sortCol, tableState.s1.sortDir);
+    } catch (e) {
+      console.error('standings', e);
+      document.getElementById('s1-body').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:var(--mid-gray);">Could not load standings — sheet may be updating.</td></tr>';
+    }
+  })();
+
+  const indPromise = (async () => {
+    try {
+      const parts = await Promise.all(view.indSheets.map(fetchSheetCached));
+      const lists = parts.map((res, i) => normIndRows(res.table, res.rows, view.indSheets[i]));
+      const merged = (lists.length > 1) ? mergeIndSeasons(lists) : (lists[0] || []);
+      const rows = merged.filter(p => inDir(p.name));
+      tableState.ind.rows = rows;
+      assignNaturalRanks(rows, IND_TH_KEYS, IND_DEFAULT_COL);
+      renderIndRows(sortRowsByCol(rows, IND_TH_KEYS, tableState.ind.sortCol, tableState.ind.sortDir), true);
+      attachSortHandlers('ind-table', sortIndTable);
+      updateSortIndicators('ind-table', tableState.ind.sortCol, tableState.ind.sortDir);
+    } catch (e) {
+      console.error('individual', e);
+      document.getElementById('ind-body').innerHTML = '<tr><td colspan="12" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
+    }
+  })();
+
+  await Promise.all([teamPromise, indPromise]);
 }
 
-/* INDIVIDUAL STATS */
-async function loadIndividual() {
-  try {
-    const table = await fetchSheet('individual_s1');
-    const rows = tableRows(table).filter(r => r[0] && typeof r[0] === 'string' && r[0].trim().length > 2 && r[0] !== 'Name');
-    tableState.ind.rows = rows;
-    assignNaturalRanks(rows, IND_COL_MAP, IND_DEFAULT_COL, false);
-    const sorted = sortRowsByCol(rows, IND_COL_MAP, tableState.ind.sortCol, tableState.ind.sortDir, false);
-    renderIndRows(sorted, true);
-    attachSortHandlers('ind-table', sortIndTable);
-    updateSortIndicators('ind-table', tableState.ind.sortCol, tableState.ind.sortDir);
-  } catch(e) {
-    document.getElementById('ind-body').innerHTML = '<tr><td colspan="11" style="text-align:center; padding:1rem; color:var(--mid-gray);">Could not load individual stats.</td></tr>';
-  }
+function setSeasonView(v) {
+  if (!SEASON_VIEWS[v] || v === seasonView) return;
+  seasonView = v;
+  tableState.s1.sortCol  = S1_DEFAULT_COL;  tableState.s1.sortDir  = 'desc';
+  tableState.ind.sortCol = IND_DEFAULT_COL; tableState.ind.sortDir = 'desc';
+  document.getElementById('s1-body').innerHTML  = '<tr><td colspan="8" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>';
+  document.getElementById('ind-body').innerHTML = '<tr><td colspan="12" class="loading-msg"><div class="spinner"></div>Loading…</td></tr>';
+  loadStandings();
 }
+
+document.getElementById('season-seg').addEventListener('click', e => {
+  const btn = e.target.closest('.seg-btn');
+  if (btn && btn.dataset.view) setSeasonView(btn.dataset.view);
+});
 
 /* SCHEDULE */
 const springSchedule = [
@@ -3677,7 +3959,6 @@ function renderProfile(name, h) {
 /* INIT */
 buildSchedule();
 loadStandings();
-loadIndividual();
 </script>
 </body>
 </html>
