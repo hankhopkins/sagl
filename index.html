@@ -609,6 +609,36 @@
     font-weight: 700;
     color: #d4a843;
   }
+  .sc-course-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .sc-tee-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,0.13);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 100px;
+    padding: 4px 14px 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--white);
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+  .sc-tee-badge .tee-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--tee, #bbb);
+    border: 1px solid rgba(255,255,255,0.6);
+    flex-shrink: 0;
+  }
   .sc-course-info {
     font-size: 11px;
     color: rgba(255,255,255,0.6);
@@ -814,7 +844,8 @@
       transform-origin: top left;
     }
   }
-    .sc-course-header { flex-direction: column; gap: 4px; }
+    .sc-course-header { flex-direction: column; gap: 6px; align-items: flex-start; }
+    .sc-tee-badge { font-size: 12px; padding: 3px 12px 3px 9px; }
     .sc-table td.sc-date-col,
     .sc-table th.sc-date-col { display: none; }
     .sc-table th.sc-coursehdcp-col { font-size: 8px; letter-spacing: 0; }
@@ -2189,6 +2220,38 @@ async function loadResults() {
 
 
 /* SCORECARDS */
+
+// Map a tee name to a swatch colour for the header badge. Returns null for
+// anything unrecognised, in which case the dot falls back to neutral grey.
+function teeSwatch(name) {
+  const t = String(name || '').trim().toLowerCase();
+  if (!t) return null;
+  const map = {
+    black: '#1c1c1c', blue: '#2f6fb5', white: '#f4f4ee', gold: '#c9a84c',
+    yellow: '#e3c53f', red: '#c0392b', green: '#2d7a4f', silver: '#c0c0c0',
+    grey: '#9a9a9a', gray: '#9a9a9a', purple: '#7d5ba6', orange: '#d97a2b',
+    bronze: '#a0522d', copper: '#b87333', teal: '#2a9d8f', maroon: '#7b241c'
+  };
+  for (const k in map) { if (t.indexOf(k) !== -1) return map[k]; }
+  return null;
+}
+
+// "Blue" -> "Blue Tees"; "Blue Tees" is left alone.
+function teeLabel(name) {
+  let t = String(name || '').trim();
+  if (!t) return '';
+  t = t.replace(/[A-Za-z]+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return /tees?$/i.test(t) ? t : t + ' Tees';
+}
+
+function teeBadge(name) {
+  const label = teeLabel(name);
+  if (!label) return '';
+  const swatch = teeSwatch(name);
+  const style = swatch ? ` style="--tee:${swatch}"` : '';
+  return `<span class="sc-tee-badge"${style}><span class="tee-dot"></span>${label}</span>`;
+}
+
 const SC_SHEETS = {
   '1_front':  'edinburgh_sc',   '1_back':   'edinburgh_back_sc',
   '2_front':  'keller_sc',      '2_back':   'keller_back_sc',
@@ -2628,8 +2691,11 @@ async function loadScorecard(resetMatchup = false) {
   }
 
   let html = `<div class="sc-course-header">
-    <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
-    <span class="sc-course-info">${teeColor} Tees &nbsp;·&nbsp; Rating ${actualRating} &nbsp;·&nbsp; Slope ${actualSlope}</span>
+    <div class="sc-course-left">
+      <span class="sc-course-name">${actualCourseName} — ${side} 9</span>
+      ${teeBadge(teeColor)}
+    </div>
+    <span class="sc-course-info">Rating ${actualRating} &nbsp;·&nbsp; Slope ${actualSlope}</span>
   </div>
   <div class="sc-wrap"><table class="sc-table">
     <thead><tr>
@@ -3011,8 +3077,11 @@ async function loadScramble() {
       const end   = half === 'front' ? 9 : 18;
       const holeNums = Array.from({length:9},(_,i)=>start+i+1);
       html += `<div class="sc-course-header" style="${half==='back'?'margin-top:1.5rem':''}">
-        <span class="sc-course-name">Meadowbrook — ${half==='front'?'Front':'Back'} 9</span>
-        <span class="sc-course-info">Blue Tees &nbsp;·&nbsp; Rating 70.4 &nbsp;·&nbsp; Slope 125</span>
+        <div class="sc-course-left">
+          <span class="sc-course-name">Meadowbrook — ${half==='front'?'Front':'Back'} 9</span>
+          ${teeBadge('Blue')}
+        </div>
+        <span class="sc-course-info">Rating 70.4 &nbsp;·&nbsp; Slope 125</span>
       </div>
       <div class="sc-wrap"><table class="sc-table">
         <thead><tr>
