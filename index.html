@@ -762,6 +762,19 @@
   .pts-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--green-dark); color: #fff; border-radius: 100px; padding: 3px 10px; font-size: 12px; font-weight: 600; min-width: 36px; }
   .pts-badge.gold-badge { background: var(--gold); color: var(--green-dark); }
   /* RESULTS PAGE */
+  .results-season-header {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    background: var(--green-dark);
+    border-radius: 8px;
+    padding: 9px 16px;
+    margin: 0 0 1.5rem;
+    letter-spacing: 0.05em;
+  }
+  .results-season-header + .results-week-section { margin-top: 0; }
+  .results-season-header:not(:first-child) { margin-top: 2.5rem; }
   .results-week-section { margin-bottom: 2.5rem; }
   .results-week-header {
     display: flex; align-items: center; gap: 12px;
@@ -1407,11 +1420,37 @@ const TEAM_COL_SPEC = {
   pts:     ['total points'],
   ppm:     ['points/match']
 };
-const TEAM_FALLBACKS = {
+// The Team column was removed from these sheets, so there are two possible
+// layouts. Header labels resolve the columns on their own; these fallbacks only
+// matter when gviz returns no labels, and the right one is sniffed from the
+// first data row (leading number = Team column still present).
+const TEAM_FALLBACKS_NO_TEAM = {
+  'season1':   { team:null, p1:0, p2:1, matches:2, w:3, l:4, t:5, scr:6,    pts:7, ppm:8 },
+  'season2':   { team:null, p1:0, p2:1, matches:2, w:3, l:4, t:5, scr:null, pts:6, ppm:7 },
+  'season1&2': { team:null, p1:0, p2:1, matches:2, w:3, l:4, t:5, scr:7,    pts:8, ppm:9 }
+};
+const TEAM_FALLBACKS_WITH_TEAM = {
   'season1':   { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:7,    pts:8, ppm:9  },
   'season2':   { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:null, pts:7, ppm:8  },
   'season1&2': { team:0, p1:1, p2:2, matches:3, w:4, l:5, t:6, scr:8,    pts:9, ppm:10 }
 };
+
+function isNumericish(v) {
+  return v !== null && v !== undefined && v !== '' && !isNaN(parseFloat(v));
+}
+
+function pickTeamFallback(sheetName, rows) {
+  const noTeam   = TEAM_FALLBACKS_NO_TEAM[sheetName]   || TEAM_FALLBACKS_NO_TEAM['season1'];
+  const withTeam = TEAM_FALLBACKS_WITH_TEAM[sheetName] || TEAM_FALLBACKS_WITH_TEAM['season1'];
+  for (const r of (rows || [])) {
+    if (!r || !r.length) continue;
+    const c0 = r[0], c1 = r[1];
+    if (typeof c0 === 'string' && /^(team|player1|name)$/i.test(c0.trim())) continue;  // header
+    if (isNumericish(c0) && typeof c1 === 'string' && c1.trim() && !isNumericish(c1)) return withTeam;
+    if (typeof c0 === 'string' && c0.trim() && !isNumericish(c0)) return noTeam;
+  }
+  return noTeam;
+}
 
 const IND_COL_SPEC = {
   matches:   ['matches'],
@@ -1437,18 +1476,21 @@ const IND_FALLBACKS = {
 };
 
 function normTeamRows(table, rows, sheetName) {
-  const c = resolveCols(headerLabels(table, rows), TEAM_COL_SPEC, TEAM_FALLBACKS[sheetName]);
+  const c = resolveCols(headerLabels(table, rows), TEAM_COL_SPEC, pickTeamFallback(sheetName, rows));
   const out = [];
   for (const r of rows) {
     if (!r || !r.length) continue;
-    const teamNum = num(r[c.team]);
-    if (teamNum === null) continue;               // drops header + blank rows
-    const p1 = r[c.p1] ? String(r[c.p1]).trim() : '';
-    const p2 = r[c.p2] ? String(r[c.p2]).trim() : '';
+    const p1 = (c.p1 !== null && r[c.p1]) ? String(r[c.p1]).trim() : '';
+    const p2 = (c.p2 !== null && r[c.p2]) ? String(r[c.p2]).trim() : '';
+    // Player1 is the row guard, not the team number — the Team column is
+    // optional and may not exist at all.
+    if (!p1 || isNumericish(p1) || /^(player1|name|team)$/i.test(p1)) continue;
+    const teamNum = (c.team === null || c.team === undefined) ? null : num(r[c.team]);
     const ln1 = lastName(p1), ln2 = lastName(p2);
     out.push({
       teamNum: teamNum, p1: p1, p2: p2,
-      name: (ln1 && ln2) ? (ln1 + ' & ' + ln2) : (teamNames()[teamNum] || 'Team ' + teamNum),
+      name: (ln1 && ln2) ? (ln1 + ' & ' + ln2)
+           : (teamNum !== null ? (teamNames()[teamNum] || 'Team ' + teamNum) : (ln1 || p1)),
       matches: num(r[c.matches]),
       w: num(r[c.w]), l: num(r[c.l]), t: num(r[c.t]),
       scr: (c.scr === null || c.scr === undefined) ? null : num(r[c.scr]),
@@ -2075,6 +2117,52 @@ async function loadHdcpChart() {
 
 
 /* RESULTS */
+
+// gviz hands back dates as the literal string "Date(2026,6,20)" (month is
+// 0-based), an Excel serial number, or an already-formatted string. Normalise
+// all three; anything unrecognised becomes ''.
+function parseSheetDate(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (typeof v === 'string') {
+    const m = v.match(/^Date\((\d+),(\d+),(\d+)/);
+    if (m) {
+      const d = new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+    }
+    const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+      return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+    }
+    return v.trim();
+  }
+  if (typeof v === 'number') {
+    const d = new Date((v - 25569) * 86400 * 1000);
+    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  }
+  return '';
+}
+
+// Map every player in a scorecard sheet to their round date. Keying by player
+// rather than block position is what lets a week split across the front and
+// back nines still line each card up with the right date.
+function scorecardDatesByPlayer(scRows, into) {
+  const out = into || {};
+  if (!scRows) return out;
+  for (let i = 0; i < scRows.length; i++) {
+    const r = scRows[i];
+    if (!r || typeof r[0] !== 'string' || r[0].indexOf('Round Date') === -1) continue;
+    let dateStr = parseSheetDate(r[1]);
+    if (!dateStr && scRows[i + 1]) dateStr = parseSheetDate(scRows[i + 1][0]);
+    if (!dateStr) continue;
+    [scRows[i + 1], scRows[i + 2]].forEach(pr => {
+      const nm = pr && pr[4] ? String(pr[4]).trim() : '';
+      if (nm && !out[nm]) out[nm] = dateStr;
+    });
+  }
+  return out;
+}
+
 async function loadResults() {
   const container = document.getElementById('results-content');
   try {
@@ -2125,45 +2213,29 @@ async function loadResults() {
       }
     }
 
-    const displayWeeks = weeks.filter(w => !w.isScramble && w.weekNum <= 3);
+    // Scramble week has its own tab; every other week shows once it exists in
+    // the sheet, so Summer appears automatically as those weeks are played.
+    const displayWeeks = weeks.filter(w => !w.isScramble && !isNaN(w.weekNum));
 
     if (displayWeeks.length === 0) {
       container.innerHTML = '<div class="loading-msg" style="padding:3rem">No results yet — check back after Week 1!</div>';
       return;
     }
 
-    // Fetch sc sheets to get match dates
+    // Round dates come from the scorecard sheets. Read both nines — a week can
+    // be split across them (week 5 was played on the back) — and key by player.
     const weekDates = {};
     await Promise.all(displayWeeks.map(async w => {
-      const scSheet = SC_SHEETS[w.weekNum + '_front'];
-      if (!scSheet) return;
-      try {
-        const t = await fetchSheet(scSheet);
-        const scRows = tableRows(t);
-        const dates = [];
-        let si = 4;
-        while (si < scRows.length) {
-          const sr = scRows[si];
-          if (sr && sr[0] && typeof sr[0] === 'string' && sr[0].includes('Round Date')) {
-            // Date is in col[1] of the Round Date row
-            let dateVal = sr[1] || null;
-            // Or in col[0] of the second player row
-            if (!dateVal && scRows[si+2]) dateVal = scRows[si+2][0];
-            let dateStr = '';
-            if (dateVal && typeof dateVal === 'string' && !dateVal.includes('Date')) {
-              dateStr = dateVal;
-            } else if (dateVal && typeof dateVal === 'number') {
-              // Add 1 to compensate for UTC timezone offset shifting date back one day
-              const d = new Date((dateVal - 25569) * 86400 * 1000);
-              dateStr = d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year:'numeric', timeZone:'UTC'});
-            }
-            dates.push(dateStr);
-            si += 3;
-            while (si < scRows.length && (!scRows[si] || !scRows[si][0] || scRows[si][0] === '')) si++;
-          } else { si++; }
-        }
-        weekDates[w.weekNum] = dates;
-      } catch(e) { weekDates[w.weekNum] = []; }
+      const sheets = [SC_SHEETS[w.weekNum + '_front'], SC_SHEETS[w.weekNum + '_back']]
+        .filter((s, i, a) => s && a.indexOf(s) === i);
+      const byPlayer = {};
+      await Promise.all(sheets.map(async name => {
+        try {
+          const t = await fetchSheet(name);
+          scorecardDatesByPlayer(tableRows(t), byPlayer);
+        } catch (e) { /* sheet may not exist yet for unplayed weeks */ }
+      }));
+      weekDates[w.weekNum] = byPlayer;
     }));
 
     function fmtNum(v) { return v !== null ? (v % 1 === 0 ? v : v.toFixed(1)) : '—'; }
@@ -2198,9 +2270,16 @@ async function loadResults() {
     };
 
     let html = '';
+    let lastSeason = null;
     for (const w of displayWeeks) {
       const anyPlayed = w.matchups.some(m => m.p1pts !== null || m.p2pts !== null);
-      const dates = weekDates[w.weekNum] || [];
+      const dates = weekDates[w.weekNum] || {};
+
+      const season = w.weekNum <= 4 ? 'Spring Season' : 'Summer Season';
+      if (season !== lastSeason) {
+        html += `<div class="results-season-header">${season}</div>`;
+        lastSeason = season;
+      }
 
       html += `<div class="results-week-section">
         <div class="section-title"><span class="dot"></span>Week ${w.weekNum} — ${w.course}
@@ -2217,8 +2296,11 @@ async function loadResults() {
           const hasData = ma.p1pts !== null || ma.p2pts !== null ||
                           (mb && (mb.p1pts !== null || mb.p2pts !== null));
           if (!hasData) { cardIdx++; continue; }
-          // Each card = 2 sc blocks; pick the first available date
-          const dateStr = dates[cardIdx * 2] || dates[cardIdx * 2 + 1] || '';
+          // Look the date up by the players in this card rather than by position,
+          // so front/back splits and missing blocks can't shift dates onto the
+          // wrong matchup.
+          const dateStr = [ma.p1name, ma.p2name, mb && mb.p1name, mb && mb.p2name]
+            .map(n => (n ? dates[n] : '')).find(Boolean) || '';
           html += `<div class="results-card">
             <div class="results-card-header">
               <span>Player</span><span>Gross</span><span class="rc-net-col">Net</span><span class="pts-head">Pts</span>
@@ -2924,15 +3006,14 @@ async function loadScramble() {
     ]);
     const rows = tableRows(table);
 
-    // Build scramble-points lookup from season1 (col 7 = Scramble), keyed by
-    // "Lastname & Lastname" to match the meadowbrook team names.
+    // Scramble points come from season1, keyed by "Lastname & Lastname" to match
+    // the meadowbrook team names. Columns are resolved from the sheet header so
+    // this survives layout changes such as the Team column being removed.
     const scramblePts = {};
     if (s1Table) {
-      for (const r of tableRows(s1Table)) {
-        if (!r[1] || r[1] === 'Player1') continue;
-        const key = `${lastName(String(r[1]))} & ${lastName(String(r[2]))}`;
-        const pts = parseFloat(r[7]);
-        if (!isNaN(pts)) scramblePts[key] = pts;
+      const s1Rows = tableRows(s1Table);
+      for (const t of normTeamRows(s1Table, s1Rows, 'season1').rows) {
+        if (t.scr !== null && t.scr !== undefined) scramblePts[t.name] = t.scr;
       }
     }
 
@@ -3286,17 +3367,17 @@ async function fetchHistory() {
   }
 
   // --- live standings ---
-  function liveStandings(t) {
+  // Delegates to the shared header-driven resolver so the Team column being
+  // present or absent doesn't matter.
+  function liveStandings(t, sheetName) {
     if (!t) return [];
-    const out = [];
-    for (const r of tableRows(t)) {
-      const team = parseInt(r[0]);
-      if (isNaN(team) || !r[1]) continue;
-      const n = v => { const x = parseFloat(v); return isNaN(x) ? null : x; };
-      out.push({ team, p1: normName(String(r[1]).trim()), p2: normName(String(r[2] || '').trim()),
-                 matches: n(r[3]), w: n(r[4]), l: n(r[5]), t: n(r[6]), pts: n(r[8]), ptsMatch: n(r[9]) });
-    }
-    return out;
+    const rows = tableRows(t);
+    return normTeamRows(t, rows, sheetName || 'season1').rows.map(x => ({
+      team: x.teamNum,
+      p1: normName(x.p1), p2: normName(x.p2),
+      matches: x.matches, w: x.w, l: x.l, t: x.t,
+      pts: x.pts, ptsMatch: x.ppm
+    }));
   }
 
   const indivMatchups = live_matchups.filter(m => !m.scramble);
@@ -3329,7 +3410,7 @@ async function fetchHistory() {
   }
 
   h.years['2026'] = {
-    s1: liveStandings(s1T), s2: liveStandings(s2T), combined: [],
+    s1: liveStandings(s1T, 'season1'), s2: liveStandings(s2T, 'season2'), combined: [],
     individual: live_individual, matchups: live_matchups,
     courses: [...new Set(indivMatchups.map(m => m.course).filter(Boolean))].sort(),
     playoffs: null, inProgress: true
