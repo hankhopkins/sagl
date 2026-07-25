@@ -2606,6 +2606,28 @@ function teamMatchupLabel(tm) {
   return (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
 }
 
+// A team-matchup counts as played if any of its four players has a real gross
+// score in the raw data. Used to default the dropdown to an unplayed matchup.
+function teamMatchupPlayed(tm, rawData) {
+  if (!tm || !rawData) return false;
+  const names = [];
+  [tm.blockA, tm.blockB].forEach(b => {
+    if (b) { if (b.p1name) names.push(b.p1name); if (b.p2name) names.push(b.p2name); }
+  });
+  return names.some(nm => {
+    const g = rawData[nm] && rawData[nm].gross;
+    return g && g.some(v => v !== null && !isNaN(v));
+  });
+}
+
+// Index of the first team-matchup with no scores yet, or -1 if all are played.
+function firstUnplayedMatchupIdx(teamMatchups, rawData) {
+  for (let i = 0; i < teamMatchups.length; i++) {
+    if (!teamMatchupPlayed(teamMatchups[i], rawData)) return i;
+  }
+  return -1;
+}
+
 function populateMatchupDropdown(teamMatchups) {
   const sel = document.getElementById('sc-matchup');
   const prev = sel.value;
@@ -2854,8 +2876,18 @@ async function loadScorecard(resetMatchup = false) {
 
   const blocks       = parseMatchupBlocks(scRows);
   const teamMatchups = groupTeamMatchups(blocks);
-  if (resetMatchup) document.getElementById('sc-matchup').value = 0;
-  populateMatchupDropdown(teamMatchups);
+  if (resetMatchup) {
+    // Default to a matchup that hasn't been played yet; fall back to the first
+    // if every matchup in this week is already complete.
+    // Populate the dropdown FIRST so the options exist, then select an unplayed
+    // matchup. Setting .value before the <option>s are rebuilt is a silent no-op
+    // (the stale options are from the previously viewed week).
+    const unplayed = firstUnplayedMatchupIdx(teamMatchups, rawData);
+    populateMatchupDropdown(teamMatchups);
+    document.getElementById('sc-matchup').value = unplayed === -1 ? 0 : unplayed;
+  } else {
+    populateMatchupDropdown(teamMatchups);
+  }
 
   const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
   const teamMatchup = teamMatchups[selectedIdx];
