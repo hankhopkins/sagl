@@ -1321,7 +1321,13 @@ function loadTab(tab) {
   if (tabLoaded[tab]) return;
   tabLoaded[tab] = true;
   if (tab === 'results')    loadResults();
-  if (tab === 'scorecards') updateNineDropdown().then(() => loadScorecard(true));
+  if (tab === 'scorecards') {
+    defaultMatchupWeek().then(wk => {
+      if (wk !== null) document.getElementById('sc-week').value = String(wk);
+      scCache = { key: null, scRows: null, rawRows: null };
+      return updateNineDropdown();
+    }).then(() => loadScorecard(true));
+  }
   if (tab === 'players')    { loadDirectory(); loadHdcpChart(); }
   if (tab === 'skins')      loadSkins();
   if (tab === 'totw')       loadTOTW();
@@ -2975,6 +2981,53 @@ document.getElementById('sc-nine').addEventListener('change', () => {
 
 // Check which nines have scores for the current week+matchup selection,
 // then update the Nine Holes dropdown accordingly
+// A week counts as fully played once every matchup in it has points on both
+// sides. The Matchups tab defaults to the earliest week that isn't fully played
+// (the scramble week 4 lives on its own tab and is skipped), so the view tracks
+// the front of the season on its own. Falls back to the last week when the
+// season is complete, and to the first week if the sheet can't be read.
+async function defaultMatchupWeek() {
+  const weekSel = document.getElementById('sc-week');
+  const weeks = Array.from(weekSel.options)
+    .map(o => parseInt(o.value)).filter(n => !isNaN(n));
+  if (!weeks.length) return null;
+
+  let completion = {};
+  try {
+    const rows = tableRows(await fetchSheet('weekly_results'));
+    const numOrNull = v => (v === null || v === undefined || v === '' || v === '#N/A' || isNaN(parseFloat(v))) ? null : parseFloat(v);
+    let i = 0;
+    while (i < rows.length) {
+      const r = rows[i];
+      if (r && String(r[2] || '') === 'Week' && rows[i + 1] && !isNaN(parseFloat(rows[i + 1][2]))) {
+        const wk = parseInt(parseFloat(rows[i + 1][2]));
+        let j = i + 3, total = 0, done = 0;
+        while (j < rows.length) {
+          const mr = rows[j];
+          if (!mr || mr.slice(0, 12).every(x => x === '' || x === null || x === undefined)) break;
+          if (String(mr[2] || '') === 'Week') break;
+          const p1 = String(mr[0] || '').trim();
+          if (p1 && p1 !== 'Name' && p1 !== 'Team' && p1 !== 'Team 1') {
+            total++;
+            if (numOrNull(mr[3]) !== null && numOrNull(mr[9]) !== null) done++;
+          }
+          j++;
+        }
+        if (total > 0) completion[wk] = (done === total);
+        i = j;
+      } else i++;
+    }
+  } catch (e) {
+    return weeks[0];   // sheet unreadable — leave it on the first week
+  }
+
+  // Earliest week present in the dropdown that isn't fully played.
+  for (const wk of weeks) {
+    if (completion[wk] !== true) return wk;
+  }
+  return weeks[weeks.length - 1];   // whole season done — show the last week
+}
+
 async function updateNineDropdown() {
   const week = document.getElementById('sc-week').value;
   const scSheetFront = SC_SHEETS[week + '_front'];
