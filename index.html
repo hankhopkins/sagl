@@ -3142,7 +3142,9 @@ async function updateNineDropdown(resetMatchup = false) {
       sel.value = 'back';
     } else {
       sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
-      sel.value = (currentVal === 'back') ? 'back' : 'front';
+      // On a reset (new week / default matchup) always start on the front; only
+      // preserve the prior nine when the user is switching within the same view.
+      sel.value = (!resetMatchup && currentVal === 'back') ? 'back' : 'front';
     }
   } catch(e) {
     sel.innerHTML = '<option value="front">Front 9</option><option value="back">Back 9</option>';
