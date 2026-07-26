@@ -502,6 +502,7 @@
     font-size: 22px; font-weight: 700; font-family: 'Playfair Display', serif;
     flex-shrink: 0;
   }
+  img.profile-avatar-lg { object-fit: cover; }
   .profile-name {
     font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700;
   }
@@ -1305,6 +1306,22 @@ function fmtAvg(v) {
 
 function initials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// "Hank Hopkins" -> "hank-hopkins", used to look up assets/players/<slug>.jpg
+function playerSlug(name) {
+  return String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// Photo when the file exists, initials circle otherwise. The onerror swaps in
+// the initials avatar if the image 404s, so photos can be added one at a time
+// without any code change — a missing file just shows initials as it does now.
+function profileAvatar(name) {
+  const slug = playerSlug(name);
+  const init = initials(name);
+  return `<img class="profile-avatar-lg" src="assets/players/${slug}.jpg" alt="${name}" `
+    + `onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),`
+    + `{className:'profile-avatar-lg',textContent:'${init}'}))">`;
 }
 
 function rankClass(i) {
@@ -4161,7 +4178,7 @@ function renderProfile(name, h) {
 
   const partnerYears = Object.entries(partners).map(([y, pt]) => `${y}: ${lastName(pt)}`).join(' · ');
   html += `<div class="profile-hero">
-    <div class="profile-avatar-lg">${initials(name)}</div>
+    ${profileAvatar(name)}
     <div>
       <div class="profile-name">${name}</div>
       <div class="profile-sub">${(c.seasons || []).length} season${(c.seasons||[]).length !== 1 ? 's' : ''} · Partners — ${partnerYears || '—'}</div>
