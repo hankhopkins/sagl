@@ -1323,7 +1323,7 @@ function playerSlug(name) {
 // background-position (pan: 'x% y%', larger y = show lower part of the photo).
 // Unlisted players fit the whole square, centered. Tune with one line.
 const PHOTO_FRAME = {
-  'hank-hopkins': { size: '260%', pos: '50% 88%' }
+  'hank-hopkins': { size: '340%', pos: '50% 92%' }
 };
 const PHOTO_FRAME_DEFAULT = { size: 'cover', pos: '50% 50%' };
 
@@ -1347,6 +1347,7 @@ function hydratePhotos(root) {
     const probe = new Image();
     probe.onload = () => {
       el.classList.add('has-photo');
+      el.textContent = '';   // remove the initials so they don't show over the photo
       el.style.backgroundImage = `url('${url}')`;
       el.style.backgroundSize = el.getAttribute('data-size') || 'cover';
       el.style.backgroundPosition = el.getAttribute('data-pos') || '50% 50%';
