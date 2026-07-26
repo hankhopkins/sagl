@@ -1325,7 +1325,7 @@ function loadTab(tab) {
     defaultMatchupWeek().then(wk => {
       if (wk !== null) document.getElementById('sc-week').value = String(wk);
       scCache = { key: null, scRows: null, rawRows: null };
-      return updateNineDropdown();
+      return updateNineDropdown(true);
     }).then(() => loadScorecard(true));
   }
   if (tab === 'players')    { loadDirectory(); loadHdcpChart(); }
@@ -2876,18 +2876,9 @@ async function loadScorecard(resetMatchup = false) {
 
   const blocks       = parseMatchupBlocks(scRows);
   const teamMatchups = groupTeamMatchups(blocks);
-  if (resetMatchup) {
-    // Default to a matchup that hasn't been played yet; fall back to the first
-    // if every matchup in this week is already complete.
-    // Populate the dropdown FIRST so the options exist, then select an unplayed
-    // matchup. Setting .value before the <option>s are rebuilt is a silent no-op
-    // (the stale options are from the previously viewed week).
-    const unplayed = firstUnplayedMatchupIdx(teamMatchups, rawData);
-    populateMatchupDropdown(teamMatchups);
-    document.getElementById('sc-matchup').value = unplayed === -1 ? 0 : unplayed;
-  } else {
-    populateMatchupDropdown(teamMatchups);
-  }
+  // On a reset, updateNineDropdown has already pointed sc-matchup at the default
+  // (first unplayed) matchup. Repopulate to be safe, preserving that selection.
+  populateMatchupDropdown(teamMatchups);
 
   const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
   const teamMatchup = teamMatchups[selectedIdx];
@@ -2950,7 +2941,7 @@ async function loadScorecard(resetMatchup = false) {
 
 document.getElementById('sc-week').addEventListener('change', () => {
   scCache = { key: null, scRows: null, rawRows: null };
-  updateNineDropdown().then(() => loadScorecard(true));
+  updateNineDropdown(true).then(() => loadScorecard(true));
 });
 
 function autoScaleTables() {
@@ -3060,7 +3051,12 @@ async function defaultMatchupWeek() {
   return weeks[weeks.length - 1];   // whole season done — show the last week
 }
 
-async function updateNineDropdown() {
+// resetMatchup: when true, the matchup dropdown is (re)pointed at the first
+// unplayed matchup BEFORE the nine options are decided. This has to happen here,
+// not in loadScorecard, because the nine restriction is computed from the
+// selected matchup's players — evaluating it against a stale selection (e.g. a
+// played matchup from index 0) would wrongly lock the nine dropdown.
+async function updateNineDropdown(resetMatchup = false) {
   const week = document.getElementById('sc-week').value;
   const scSheetFront = SC_SHEETS[week + '_front'];
   const frontRawSheet = SC_RAW_SHEETS[scSheetFront];
@@ -3078,9 +3074,23 @@ async function updateNineDropdown() {
       scRows = tableRows(scTable);
     }
 
-    // Get the selected matchup's player names
+    // Get the matchup player names. Which nine has scores tells us both the
+    // default matchup and the nine restriction, so read both raw sheets up front.
     const blocks = parseMatchupBlocks(scRows);
     const teamMatchups = groupTeamMatchups(blocks);
+
+    const [frontRawEarly, backRawEarly] = await Promise.all([
+      frontRawSheet ? fetchSheet(frontRawSheet).then(t => tableRows(t)).catch(() => null) : Promise.resolve(null),
+      backRawSheet  ? fetchSheet(backRawSheet).then(t => tableRows(t)).catch(() => null)  : Promise.resolve(null)
+    ]);
+
+    if (resetMatchup) {
+      const rawData = Object.assign({}, parseRawScores(frontRawEarly), parseRawScores(backRawEarly));
+      const unplayed = firstUnplayedMatchupIdx(teamMatchups, rawData);
+      populateMatchupDropdown(teamMatchups);
+      document.getElementById('sc-matchup').value = unplayed === -1 ? 0 : unplayed;
+    }
+
     const selectedIdx = parseInt(document.getElementById('sc-matchup').value) || 0;
     const tm = teamMatchups[selectedIdx];
     if (!tm) return;
@@ -3091,11 +3101,7 @@ async function updateNineDropdown() {
       if (b) { if (b.p1name) players.add(b.p1name); if (b.p2name) players.add(b.p2name); }
     });
 
-    // Fetch both raw sheets in parallel
-    const [frontRaw, backRaw] = await Promise.all([
-      frontRawSheet ? fetchSheet(frontRawSheet).then(t => tableRows(t)).catch(() => null) : Promise.resolve(null),
-      backRawSheet  ? fetchSheet(backRawSheet).then(t => tableRows(t)).catch(() => null)  : Promise.resolve(null)
-    ]);
+    const frontRaw = frontRawEarly, backRaw = backRawEarly;
 
     // Check if a raw sheet has scores for any of our matchup's players
     function hasScoresForPlayers(rawRows, playerSet) {
