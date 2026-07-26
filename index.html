@@ -4182,7 +4182,7 @@ function renderProfile(name, h) {
         <td style="font-weight:600;color:var(--green-dark)">${yr}${yr === '2026' ? ' <span style="font-size:10px;color:var(--gold);font-style:italic">live</span>' : ''}</td>
         <td>${lastName(partners[yr] || '') || '—'}</td>
         <td>${fmt1(s.w)}</td><td>${fmt1(s.l)}</td><td>${fmt1(s.t)}</td>
-        <td><strong>${fmt1(s.pts)}</strong></td><td>${fmt2(s.ptsMatch)}</td>
+        <td>${fmt1(s.pts)}</td><td><strong>${fmt2(s.ptsMatch)}</strong></td>
         <td>${fmt1(s.grossAvg)}</td><td>${fmt1(s.netAvg)}</td>
       </tr>`;
     }
