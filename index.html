@@ -277,6 +277,26 @@
     font-weight: 500;
     color: var(--green-dark);
   }
+  .dir-name-link {
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--green-dark);
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .dir-name-link:hover {
+    color: var(--green-mid);
+    border-bottom-color: var(--gold);
+  }
+  .dir-name-link::after {
+    content: '›';
+    opacity: 0;
+    margin-left: 5px;
+    color: var(--gold);
+    font-weight: 700;
+    transition: opacity 0.15s;
+  }
+  .dir-name-link:hover::after { opacity: 1; }
 
   /* SCHEDULE GRID */
   .schedule-grid {
@@ -1996,6 +2016,41 @@ function buildSchedule() {
 }
 
 /* DIRECTORY */
+// Names that have a profile page (populated by loadProfiles). Until profiles
+// have loaded once, we optimistically treat any name as linkable; goToProfile
+// re-checks after the profile dropdown is built.
+let profileNames = null;
+
+function profileLink(name) {
+  const safe = String(name || '');
+  // If we know the profile set and this name isn't in it, render plain text.
+  if (profileNames && !profileNames.has(safe)) return safe;
+  const esc = safe.replace(/"/g, '&quot;');
+  return `<span class="dir-name-link" role="link" tabindex="0" `
+    + `onclick="goToProfile('${esc.replace(/'/g, "\\'")}')" `
+    + `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToProfile('${esc.replace(/'/g, "\\'")}')}">${safe}</span>`;
+}
+
+// Switch to the Profiles tab and select the given player. The profile dropdown
+// is built asynchronously by loadProfiles, so retry briefly until the option
+// exists before giving up.
+function goToProfile(name) {
+  const btn = document.querySelector('.nav-btn[data-tab="profiles"]');
+  if (btn) btn.click();   // activates tab + triggers lazy loadProfiles()
+
+  const sel = document.getElementById('profile-player');
+  let tries = 0;
+  (function select() {
+    const has = sel && Array.from(sel.options).some(o => o.value === name);
+    if (has) {
+      sel.value = name;
+      sel.dispatchEvent(new Event('change'));
+      return;
+    }
+    if (tries++ < 40) setTimeout(select, 75);   // ~3s max while history loads
+  })();
+}
+
 async function loadDirectory() {
   try {
     const table = await fetchSheet('league_directory');
@@ -2009,7 +2064,7 @@ async function loadDirectory() {
       const dividerStyle = isNewTeam && i > 0 ? 'border-top: 2px solid var(--border);' : '';
       return `<tr style="${dividerStyle}">
         <td style="color:var(--mid-gray); font-size:12px; text-align:center; ${dividerStyle}">${tNum}</td>
-        <td class="team-name" style="${dividerStyle}">${r[1]}</td>
+        <td class="team-name" style="${dividerStyle}">${profileLink(r[1])}</td>
         <td style="font-size:12px; ${dividerStyle}">${r[2] || ''}</td>
         <td style="${dividerStyle}"><span class="hdcp-pill">${r[4]}</span></td>
         <td style="color:var(--mid-gray); font-size:12px; ${dividerStyle}">${r[6]}</td>
@@ -4185,6 +4240,7 @@ async function loadProfiles() {
     const pastNames = names.filter(n => !current.has(n));
     sel.innerHTML = `<optgroup label="2026 Roster">${currentNames.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>
       <optgroup label="League Alumni">${pastNames.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>`;
+    profileNames = new Set(names);
     renderProfile(sel.value, h);
   } catch(e) {
     document.getElementById('profile-content').innerHTML = '<div class="loading-msg">Could not load profile data.</div>';
