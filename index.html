@@ -1316,24 +1316,43 @@ function playerSlug(name) {
 // Photo when the file exists, initials circle otherwise. The onerror swaps in
 // the initials avatar if the image 404s, so photos can be added one at a time
 // without any code change — a missing file just shows initials as it does now.
-// Per-player crop anchor for the circular photo. object-fit:cover fills the
-// circle; this controls WHICH part stays visible when the photo isn't square.
-// Values are CSS object-position (e.g. 'center 20%' shows nearer the top,
-// 'center 80%' nearer the bottom). Keyed by slug; unlisted players use the
-// default. Tune a player by adding a line here — no other change needed.
-const PHOTO_ANCHOR = {
-  'hank-hopkins': 'center 82%'
+// Per-player framing for the circular photo. The photos are square and fill a
+// square circle, so re-anchoring alone does nothing — bringing a small,
+// off-center face into frame needs a ZOOM plus a PAN. Each entry sets a
+// background-size (zoom: 'cover' = fit whole photo, a % > 100 zooms in) and a
+// background-position (pan: 'x% y%', larger y = show lower part of the photo).
+// Unlisted players fit the whole square, centered. Tune with one line.
+const PHOTO_FRAME = {
+  'hank-hopkins': { size: '260%', pos: '50% 88%' }
 };
-const PHOTO_ANCHOR_DEFAULT = 'center 30%';
+const PHOTO_FRAME_DEFAULT = { size: 'cover', pos: '50% 50%' };
 
+// Renders the initials circle tagged with the photo URL + frame. hydratePhotos()
+// runs after the profile HTML is inserted, probes each image, and only on a
+// successful load swaps in the background photo — a missing file just stays as
+// initials with no broken-image flash.
 function profileAvatar(name) {
   const slug = playerSlug(name);
   const init = initials(name);
-  const pos = PHOTO_ANCHOR[slug] || PHOTO_ANCHOR_DEFAULT;
-  return `<img class="profile-avatar-lg" src="assets/players/${slug}.jpg" alt="${name}" `
-    + `style="object-position:${pos}" `
-    + `onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),`
-    + `{className:'profile-avatar-lg',textContent:'${init}'}))">`;
+  const f = PHOTO_FRAME[slug] || PHOTO_FRAME_DEFAULT;
+  return `<div class="profile-avatar-lg" data-photo="assets/players/${slug}.jpg" `
+    + `data-size="${f.size}" data-pos="${f.pos}">${init}</div>`;
+}
+
+function hydratePhotos(root) {
+  (root || document).querySelectorAll('.profile-avatar-lg[data-photo]').forEach(el => {
+    const url = el.getAttribute('data-photo');
+    el.removeAttribute('data-photo');
+    if (!url) return;
+    const probe = new Image();
+    probe.onload = () => {
+      el.classList.add('has-photo');
+      el.style.backgroundImage = `url('${url}')`;
+      el.style.backgroundSize = el.getAttribute('data-size') || 'cover';
+      el.style.backgroundPosition = el.getAttribute('data-pos') || '50% 50%';
+    };
+    probe.src = url;
+  });
 }
 
 function rankClass(i) {
@@ -4321,6 +4340,7 @@ function renderProfile(name, h) {
   html += `</div>`;
 
   container.innerHTML = html;
+  hydratePhotos(container);
 }
 
 /* INIT */
