@@ -1316,10 +1316,22 @@ function playerSlug(name) {
 // Photo when the file exists, initials circle otherwise. The onerror swaps in
 // the initials avatar if the image 404s, so photos can be added one at a time
 // without any code change — a missing file just shows initials as it does now.
+// Per-player crop anchor for the circular photo. object-fit:cover fills the
+// circle; this controls WHICH part stays visible when the photo isn't square.
+// Values are CSS object-position (e.g. 'center 20%' shows nearer the top,
+// 'center 80%' nearer the bottom). Keyed by slug; unlisted players use the
+// default. Tune a player by adding a line here — no other change needed.
+const PHOTO_ANCHOR = {
+  'hank-hopkins': 'center 82%'
+};
+const PHOTO_ANCHOR_DEFAULT = 'center 30%';
+
 function profileAvatar(name) {
   const slug = playerSlug(name);
   const init = initials(name);
+  const pos = PHOTO_ANCHOR[slug] || PHOTO_ANCHOR_DEFAULT;
   return `<img class="profile-avatar-lg" src="assets/players/${slug}.jpg" alt="${name}" `
+    + `style="object-position:${pos}" `
     + `onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),`
     + `{className:'profile-avatar-lg',textContent:'${init}'}))">`;
 }
