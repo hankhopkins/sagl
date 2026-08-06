@@ -2716,7 +2716,18 @@ function teamMatchupLabel(tm) {
 // A team-matchup counts as played if any of its four players has a real gross
 // score in the raw data. Used to default the dropdown to an unplayed matchup.
 function teamMatchupPlayed(tm, rawData) {
-  if (!tm || !rawData) return false;
+  if (!tm) return false;
+  // A round date on the block is the most reliable "this was played" signal: it
+  // lives in the same scorecard sheet that lists the matchup, so it can't lag
+  // the way the separate raw score sheet can. Treat a present date as played.
+  const hasDate = [tm.blockA, tm.blockB].some(b => {
+    if (!b || !b.dateRow) return false;
+    const dv = b.dateRow[1];
+    return dv !== null && dv !== undefined && String(dv).trim() !== '';
+  });
+  if (hasDate) return true;
+  // Fall back to raw scores (covers weeks/sheets where dates aren't filled in).
+  if (!rawData) return false;
   const names = [];
   [tm.blockA, tm.blockB].forEach(b => {
     if (b) { if (b.p1name) names.push(b.p1name); if (b.p2name) names.push(b.p2name); }
