@@ -1,0 +1,10 @@
+[
+  {
+    "season": "Summer 2026",
+    "week": 6,
+    "course": "Braemar",
+    "date": "2026-07-27",
+    "title": "Week 6 — Braemar",
+    "body": "Recap coming soon.\n\nEdit data/summaries.json to add each week's writeup. Newest entries go at the top of the list. Blank lines become paragraph breaks and single line breaks are preserved, so emoji award lists and skins payouts keep their shape."
+  }
+]
