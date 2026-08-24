@@ -2436,7 +2436,10 @@ function parseSheetDate(v) {
       const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
       return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     }
-    return v.trim();
+    // Accept a plain M/D/YYYY that's already formatted; reject anything else
+    // (labels like "Today's Date:" must not pass through as a date).
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(v.trim())) return v.trim();
+    return '';
   }
   if (typeof v === 'number') {
     const d = new Date((v - 25569) * 86400 * 1000);
@@ -2454,8 +2457,9 @@ function scorecardDatesByPlayer(scRows, into) {
   for (let i = 0; i < scRows.length; i++) {
     const r = scRows[i];
     if (!r || typeof r[0] !== 'string' || r[0].indexOf('Round Date') === -1) continue;
-    let dateStr = parseSheetDate(r[1]);
-    if (!dateStr && scRows[i + 1]) dateStr = parseSheetDate(scRows[i + 1][0]);
+    // The round date is in column B of the "Round Date:" row. The row directly
+    // below is a "Today's Date:" label, never a date, so there's no fallback.
+    const dateStr = parseSheetDate(r[1]);
     if (!dateStr) continue;
     [scRows[i + 1], scRows[i + 2]].forEach(pr => {
       const nm = pr && pr[4] ? String(pr[4]).trim() : '';
