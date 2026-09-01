@@ -1781,6 +1781,29 @@ const IND_TH_KEYS = ['name', 'w', 'l', 't', 'ppm', 'gross', 'net', 'oppnet',
 const S1_DEFAULT_COL  = 7;
 const IND_DEFAULT_COL = 4;
 
+// Head-to-head tiebreakers that the raw standings can't resolve (equal points
+// AND equal points/match). Keyed by season view; each entry lists team names
+// (by the "Lastname & Lastname" display name) in the order they should rank.
+// Spring: Anderson & Bornhorst finished level with Gallagher & Fischer at 41.5,
+// and won the head-to-head, so they take 3rd.
+const STANDINGS_TIEBREAK = {
+  spring: [
+    ['Anderson & Bornhorst', 'Gallagher & Fischer']
+  ]
+};
+
+// Returns <0 if a should rank ahead of b by a known tiebreak, >0 if behind,
+// 0 if no tiebreak applies. Only consulted when the primary sort keys are equal.
+function tiebreakCompare(a, b) {
+  const order = STANDINGS_TIEBREAK[seasonView];
+  if (!order) return 0;
+  for (const chain of order) {
+    const ia = chain.indexOf(a.name), ib = chain.indexOf(b.name);
+    if (ia !== -1 && ib !== -1 && ia !== ib) return ia - ib;
+  }
+  return 0;
+}
+
 function sortRowsByCol(rows, keys, colIdx, dir) {
   const key = keys[colIdx];
   const sorted = rows.slice();
@@ -1793,7 +1816,11 @@ function sortRowsByCol(rows, keys, colIdx, dir) {
     let av = a[key], bv = b[key];
     av = (av === null || av === undefined || isNaN(av)) ? -Infinity : av;
     bv = (bv === null || bv === undefined || isNaN(bv)) ? -Infinity : bv;
-    return dir === 'asc' ? av - bv : bv - av;
+    if (av !== bv) return dir === 'asc' ? av - bv : bv - av;
+    // Equal on this column — apply a known head-to-head tiebreak if one exists.
+    // The tiebreak is direction-independent: the winner ranks ahead regardless
+    // of asc/desc, matching how a "better" finish should read either way.
+    return tiebreakCompare(a, b);
   });
   return sorted;
 }
