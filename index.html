@@ -876,6 +876,24 @@
     margin: 0 0 8px 2px;
     max-width: 800px;
   }
+  /* PLAYOFFS */
+  .playoff-round { margin-bottom: 2rem; }
+  .playoff-card { margin-bottom: 2rem; }
+  .playoff-nine-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green-mid);
+    margin: 14px 0 6px 2px;
+  }
+  .playoff-legend {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--mid-gray);
+    padding: 0 2px;
+    line-height: 1.7;
+  }
   .results-nine-label::after {
     content: '';
     flex: 1;
@@ -1004,7 +1022,8 @@
 </header>
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
-  <button class="nav-btn active" data-tab="standings">Standings</button>
+  <button class="nav-btn active" data-tab="playoffs">Playoffs</button>
+  <button class="nav-btn" data-tab="standings">Standings</button>
   <button class="nav-btn" data-tab="results">Results</button>
   <button class="nav-btn" data-tab="scorecards">Matchups</button>
   <button class="nav-btn" data-tab="schedule">Schedule</button>
@@ -1020,8 +1039,15 @@
 
 <main>
 
+  <!-- PLAYOFFS TAB -->
+  <div class="tab-content active" id="tab-playoffs">
+    <div id="playoff-content">
+      <div class="loading-msg"><div class="spinner"></div>Loading playoffs…</div>
+    </div>
+  </div>
+
   <!-- STANDINGS TAB -->
-  <div class="tab-content active" id="tab-standings">
+  <div class="tab-content" id="tab-standings">
     <div class="stat-row" id="stat-row">
       <div class="stat-card"><div class="stat-value">8</div><div class="stat-label" style="color:#d4a843">Teams</div></div>
       <div class="stat-card"><div class="stat-value">8+</div><div class="stat-label" style="color:#d4a843">Matches</div></div>
@@ -1465,6 +1491,7 @@ const tabLoaded = {};
 function loadTab(tab) {
   if (tabLoaded[tab]) return;
   tabLoaded[tab] = true;
+  if (tab === 'playoffs')   loadPlayoffs();
   if (tab === 'results')    loadResults();
   if (tab === 'scorecards') {
     defaultMatchupWeek().then(wk => {
@@ -1491,6 +1518,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
   document.getElementById('tab-' + tab).classList.add('active');
   loadTab(tab);
   if (tab === 'scorecards') setTimeout(autoScaleScorecard, 100);
+  if (tab === 'playoffs')   { setTimeout(autoScalePlayoffs, 100); setTimeout(autoScalePlayoffs, 500); }
   if (tab === 'standings')  { setTimeout(autoScaleTables, 100); setTimeout(autoScaleTables, 500); }
 });
 
@@ -4608,9 +4636,244 @@ function renderProfile(name, h) {
   hydratePhotos(container);
 }
 
+
+/* ================= PLAYOFFS =================
+   Playoff scorecards are self-contained 18-hole sheets (unlike regular-season
+   _sc sheets, which are per-nine and pull gross from a separate raw sheet). Each
+   sheet holds the course header rows plus Round Date matchup blocks. Right now
+   only the Quarterfinals sheet is live, with one team matchup set up. Gross
+   scores are read from the sheet's own hole cells when present; until a round is
+   scored, the card shows the matchup, handicaps and computed stroke allocation.
+   Stroke dots are computed from the course handicaps (verified to match the
+   sheet's own stroke markers), so net/results fill in correctly as gross is
+   entered. Rendered as Front 9 + Back 9 tables, reusing the Matchups styling. */
+
+const PLAYOFF_ROUNDS = [
+  { label: 'Quarterfinals', sheet: 'quarterfinals_sc', course: 'Keller' }
+  // Semifinals / Championship rounds get added here as they go live.
+];
+
+function pfNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string' && (v === 'x' || v.charAt(0) === '#')) return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+// Locate the course header rows regardless of leading blank rows. The par row is
+// the one whose 5th cell reads "Par" and whose 4th cell is Both/Front/Back; the
+// yards row sits just above it and the hole-number row two above.
+function pfHeader(rows) {
+  let parIdx = -1, hdcpRow = null;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const c3 = String(r[3] || ''), c4 = String(r[4] || '');
+    if (c4 === 'Par' && (c3 === 'Both' || c3 === 'Front' || c3 === 'Back')) parIdx = i;
+    if (c4 === 'Handicap') hdcpRow = r;
+  }
+  if (parIdx < 0) return null;
+  return {
+    parRow:  rows[parIdx],
+    hdcpRow: hdcpRow,
+    yardRow: parIdx >= 1 ? rows[parIdx - 1] : null,   // tee name, rating, slope, yards
+    holeRow: parIdx >= 2 ? rows[parIdx - 2] : null     // course name + hole numbers
+  };
+}
+
+// 18-hole stroke allocation: the `diff` hardest holes (lowest hole handicap) each
+// get a full stroke; a half handicap adds a half-stroke on the next hardest hole.
+function pfStrokeMap(hiCH, loCH, hdcpArr) {
+  const diff = Math.round((hiCH - loCH) * 2) / 2;
+  const full = Math.floor(diff), half = (diff % 1) === 0.5;
+  const order = hdcpArr.map((h, idx) => ({ idx, h: pfNum(h) }))
+                       .filter(x => x.h !== null)
+                       .sort((a, b) => a.h - b.h);
+  const map = new Array(hdcpArr.length).fill(0);
+  order.forEach((o, k) => { if (k < full) map[o.idx] = 1; else if (half && k === full) map[o.idx] = 0.5; });
+  return map;
+}
+
+// Build one individual match (p1 vs p2) across all 18 holes: strokes, gross, net,
+// and per-hole win/loss/tie results.
+function pfBuildMatch(block, hdcp18) {
+  const p1ch = pfNum(block.p1row ? block.p1row[2] : null) || 0;
+  const p2ch = pfNum(block.p2row ? block.p2row[2] : null) || 0;
+  const hi = Math.max(p1ch, p2ch), lo = Math.min(p1ch, p2ch);
+  const p1strokes = (p1ch === hi && hi !== lo) ? pfStrokeMap(hi, lo, hdcp18) : new Array(18).fill(0);
+  const p2strokes = (p2ch === hi && hi !== lo) ? pfStrokeMap(hi, lo, hdcp18) : new Array(18).fill(0);
+  const grossOf = row => {
+    const cells = row ? row.slice(5, 23) : [];
+    const out = new Array(18).fill(null);
+    for (let i = 0; i < 18; i++) out[i] = pfNum(cells[i]);
+    return out;
+  };
+  const p1gross = grossOf(block.p1row), p2gross = grossOf(block.p2row);
+  const netOf = (gross, str) => gross.map((g, i) => g === null ? null : g - (str[i] || 0));
+  const p1net = netOf(p1gross, p1strokes), p2net = netOf(p2gross, p2strokes);
+  const resOf = (n1, n2) => n1.map((a, i) => {
+    const b = n2[i];
+    if (a === null || b === null) return null;
+    return a < b ? 1 : a === b ? 0.5 : 0;
+  });
+  return {
+    p1: { name: block.p1name, row: block.p1row, ch: p1ch, strokes: p1strokes, gross: p1gross, net: p1net, res: resOf(p1net, p2net) },
+    p2: { name: block.p2name, row: block.p2row, ch: p2ch, strokes: p2strokes, gross: p2gross, net: p2net, res: resOf(p2net, p1net) }
+  };
+}
+
+function pfPlayerRow(p, start) {
+  const g9 = p.gross.slice(start, start + 9), n9 = p.net.slice(start, start + 9),
+        r9 = p.res.slice(start, start + 9),   s9 = p.strokes.slice(start, start + 9);
+  const cur = (p.row && p.row[1] !== null && p.row[1] !== '') ? parseFloat(p.row[1]).toFixed(1) : '';
+  const chDisp = (p.ch % 1 === 0) ? p.ch : p.ch.toFixed(1);
+  const vg = g9.filter(v => v !== null), vn = n9.filter(v => v !== null);
+  const tg = vg.length ? vg.reduce((a, b) => a + b, 0) : null;
+  const tn = vn.length ? vn.reduce((a, b) => a + b, 0) : null;
+  const gnStr = (tg !== null && tn !== null) ? `${tg} / ${tn % 1 === 0 ? tn : tn.toFixed(1)}` : '';
+  const anyRes = r9.some(v => v !== null);
+  const pts = r9.filter(v => v !== null).reduce((a, b) => a + b, 0);
+  const ptsStr = anyRes ? (pts % 1 === 0 ? pts : pts.toFixed(1)) : '';
+  let cells = '';
+  for (let i = 0; i < 9; i++) cells += renderHoleCell(start + i + 1, s9[i], g9[i], n9[i], null, r9[i], i === 0);
+  return `<tr class="sc-matchup">
+    <td class="team-name">${p.name || ''}</td>
+    <td>${cur}</td>
+    <td class="sc-coursehdcp-col">${chDisp}</td>
+    ${cells}
+    <td style="text-align:center;font-size:12px;white-space:nowrap;padding:6px 8px;color:var(--mid-gray)">${gnStr}</td>
+    <td style="text-align:center">${ptsStr}</td>
+  </tr>`;
+}
+
+function pfRenderNine(matchData, nine, par18, hdcp18, yard18) {
+  const start = nine === 'back' ? 9 : 0;
+  const holes = Array.from({ length: 9 }, (_, i) => start + i + 1);
+  const sl = arr => arr.slice(start, start + 9);
+  const par9 = sl(par18).map(pfNum), hdcp9 = sl(hdcp18), yard9 = sl(yard18);
+  const parTot = par9.reduce((a, b) => a + (b || 0), 0);
+  const yardTot = yard9.reduce((a, b) => a + (pfNum(b) || 0), 0);
+
+  let html = `<div class="playoff-nine-label">${nine === 'back' ? 'Back 9' : 'Front 9'}</div>
+  <div class="sc-wrap"><table class="sc-table"><thead><tr>
+    <th>Hole</th><th></th><th class="sc-coursehdcp-col"></th>
+    ${holes.map(h => '<th>' + h + '</th>').join('')}<th></th><th></th>
+  </tr></thead><tbody>`;
+  html += `<tr class="sc-hdcp"><td>Yards</td><td></td><td class="sc-coursehdcp-col"></td>${yard9.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td>${yardTot || ''}</td><td></td></tr>`;
+  html += `<tr class="sc-par"><td>Par</td><td></td><td class="sc-coursehdcp-col"></td>${par9.map(v => '<td style="font-weight:600">' + (v !== null ? v : '') + '</td>').join('')}<td style="font-weight:600">${parTot || ''}</td><td></td></tr>`;
+  html += `<tr class="sc-hdcp"><td>Hole Handicap</td><td></td><td class="sc-coursehdcp-col"></td>${hdcp9.map(v => '<td>' + (v !== null && v !== '' ? v : '') + '</td>').join('')}<td></td><td></td></tr>`;
+  html += `<tr style="background:var(--green-dark)">
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left">Player</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Hdcp</th>
+    <th class="sc-coursehdcp-col" style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Course Hdcp</th>
+    ${holes.map(() => '<th style="color:#fff"></th>').join('')}
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Gross/Net</th>
+    <th style="color:#fff;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Pts</th>
+  </tr>`;
+  matchData.forEach((md, mi) => {
+    const isGold = mi % 2 === 0;
+    const label = (md.p1.name || '') + ' v ' + (md.p2.name || '');
+    html += `<tr><td colspan="14" class="sc-matchup-header" style="background:${isGold ? '#d4a843' : '#1a3a2a'};color:${isGold ? '#1a3a2a' : '#d4a843'}">${label}</td></tr>`;
+    html += pfPlayerRow(md.p1, start);
+    html += pfPlayerRow(md.p2, start);
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function pfRenderMatchup(tm, hdr, round) {
+  const a1 = lastName(tm.blockA.p1name), a2 = lastName(tm.blockA.p2name);
+  const b1 = tm.blockB ? lastName(tm.blockB.p1name) : '', b2 = tm.blockB ? lastName(tm.blockB.p2name) : '';
+  const teamLabel = (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
+
+  const courseName = round.course || (hdr.holeRow ? String(hdr.holeRow[1] || '') : '');
+  const teeColor = hdr.yardRow ? String(hdr.yardRow[1] || '') : '';
+  const rating = hdr.yardRow ? (hdr.yardRow[2] || '') : '';
+  const slope  = hdr.yardRow ? (hdr.yardRow[3] || '') : '';
+
+  const par18  = hdr.parRow.slice(5, 23);
+  const hdcp18 = hdr.hdcpRow ? hdr.hdcpRow.slice(5, 23) : new Array(18).fill('');
+  const yard18 = hdr.yardRow ? hdr.yardRow.slice(5, 23) : new Array(18).fill('');
+
+  const blocks = [tm.blockA, tm.blockB].filter(b => b && b.p1name && b.p2name);
+  const matchData = blocks.map(b => pfBuildMatch(b, hdcp18));
+
+  let html = `<div class="playoff-card">
+    <div class="sc-course-header">
+      <div class="sc-course-left">
+        <span class="sc-course-name">${teamLabel}</span>
+        ${teeBadge(teeColor)}
+      </div>
+      <span class="sc-course-info">${courseName} &nbsp;·&nbsp; Rating ${rating} &nbsp;·&nbsp; Slope ${slope}</span>
+    </div>`;
+  html += pfRenderNine(matchData, 'front', par18, hdcp18, yard18);
+  html += pfRenderNine(matchData, 'back',  par18, hdcp18, yard18);
+  html += `<div class="playoff-legend">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px;">
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(45,90,61,0.18);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Won hole</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,40,40,0.13);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Lost hole</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:rgba(180,180,180,0.15);border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Tied hole</span>
+      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">●</span>Full stroke given</span>
+      <span><span style="color:var(--gold);font-weight:600;margin-right:3px;">½</span>Half stroke given</span>
+    </div>
+    <div><strong>Top-left</strong> gross &nbsp;·&nbsp; <em style="color:#555">Top-right</em> net &nbsp;·&nbsp; <strong>Bottom-left</strong> strokes given</div>
+  </div></div>`;
+  return html;
+}
+
+async function loadPlayoffs() {
+  const container = document.getElementById('playoff-content');
+  const sections = [];
+  for (const round of PLAYOFF_ROUNDS) {
+    let scRows;
+    try { scRows = tableRows(await fetchSheet(round.sheet)); }
+    catch (e) { continue; }                       // round sheet not present yet
+    if (!scRows || scRows.length < 4) continue;
+    const hdr = pfHeader(scRows);
+    if (!hdr) continue;
+    const teamMatchups = groupTeamMatchups(parseMatchupBlocks(scRows))
+      .filter(tm => tm.blockA && tm.blockA.p1name && tm.blockA.p2name);
+    if (!teamMatchups.length) continue;
+
+    let html = `<div class="playoff-round"><div class="section-title"><span class="dot"></span>${round.label}</div>`;
+    for (const tm of teamMatchups) html += pfRenderMatchup(tm, hdr, round);
+    html += `</div>`;
+    sections.push(html);
+  }
+
+  if (!sections.length) {
+    container.innerHTML = '<div class="loading-msg" style="padding:2.5rem;text-align:center;color:var(--mid-gray);font-style:italic;">No playoff matchups posted yet — check back once the bracket is set.</div>';
+    return;
+  }
+  container.innerHTML = sections.join('');
+  setTimeout(autoScalePlayoffs, 200);
+  setTimeout(autoScalePlayoffs, 600);
+}
+
+function autoScalePlayoffs() {
+  const c = document.getElementById('playoff-content');
+  if (!c) return;
+  c.querySelectorAll('.sc-wrap').forEach(wrap => {
+    wrap.style.transform = ''; wrap.style.transformOrigin = ''; wrap.style.width = ''; wrap.style.marginBottom = '';
+    const cw = c.offsetWidth, nw = wrap.scrollWidth;
+    if (cw <= 0 || nw <= 0) return;
+    if (nw > cw) {
+      const s = cw / nw;
+      wrap.style.transformOrigin = 'top left';
+      wrap.style.transform = `scale(${s})`;
+      wrap.style.width = nw + 'px';
+      wrap.style.marginBottom = `-${wrap.offsetHeight * (1 - s)}px`;
+    }
+  });
+}
+window.addEventListener('resize', () => setTimeout(autoScalePlayoffs, 300));
+
+
 /* INIT */
 buildSchedule();
 loadStandings();
+tabLoaded['playoffs'] = true;   // Playoffs is the landing tab
+loadPlayoffs();
 </script>
 </body>
 </html>
