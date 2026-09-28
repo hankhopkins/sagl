@@ -4781,13 +4781,33 @@ function pfRenderNine(matchData, nine, par18, hdcp18, yard18) {
   return html;
 }
 
+// The tee name (e.g. "Black") sits in the yards header row, but live gviz can
+// align that row differently than a static read expects. It also appears in
+// each player row's 4th cell — the source the Matchups tab reads successfully.
+// Take the first candidate that's a non-numeric word (rating/slope are numbers).
+function pfTee(hdr, blockA, blockB) {
+  const cands = [
+    hdr && hdr.yardRow ? hdr.yardRow[1] : '',
+    blockA && blockA.p1row ? blockA.p1row[3] : '',
+    blockA && blockA.p2row ? blockA.p2row[3] : '',
+    blockB && blockB.p1row ? blockB.p1row[3] : ''
+  ];
+  for (const c of cands) {
+    const s = String(c == null ? '' : c).trim();
+    // A tee name is a single non-numeric token ("Black", "Blue", "E"); this skips
+    // numbers (rating/slope) and any player name (which contains a space).
+    if (s && isNaN(parseFloat(s)) && s.indexOf(' ') === -1) return s;
+  }
+  return '';
+}
+
 function pfRenderMatchup(tm, hdr, round) {
   const a1 = lastName(tm.blockA.p1name), a2 = lastName(tm.blockA.p2name);
   const b1 = tm.blockB ? lastName(tm.blockB.p1name) : '', b2 = tm.blockB ? lastName(tm.blockB.p2name) : '';
   const teamLabel = (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
 
   const courseName = round.course || (hdr.holeRow ? String(hdr.holeRow[1] || '') : '');
-  const teeColor = hdr.yardRow ? String(hdr.yardRow[1] || '') : '';
+  const teeColor = pfTee(hdr, tm.blockA, tm.blockB);
   const rating = hdr.yardRow ? (hdr.yardRow[2] || '') : '';
   const slope  = hdr.yardRow ? (hdr.yardRow[3] || '') : '';
 
