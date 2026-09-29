@@ -894,6 +894,105 @@
     padding: 0 2px;
     line-height: 1.7;
   }
+  /* PLAYOFF BRACKET */
+  .pfb-wrap { margin-bottom: 2.25rem; }
+  .pfb-scroll {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pfb-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 190px;
+    flex: 1;
+  }
+  .pfb-col-center { justify-content: center; }
+  .pfb-col-title {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green-mid);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+  .pfb-col-center .pfb-col-title { border-bottom: none; }
+  .pfb-match {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .pfb-meta {
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mid-gray);
+    background: var(--gold-pale);
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pfb-team {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+  }
+  .pfb-team + .pfb-team { border-top: 1px solid var(--border); }
+  .pfb-win { background: rgba(45,90,61,0.06); }
+  .pfb-seed {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--green-dark);
+    color: var(--gold-light);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .pfb-seed-empty { background: transparent; }
+  .pfb-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--charcoal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pfb-win .pfb-name { font-weight: 700; color: var(--green-dark); }
+  .pfb-tbd { color: var(--mid-gray); font-weight: 400; font-style: italic; }
+  .pfb-check {
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .pfb-note {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--mid-gray);
+    background: var(--gold-pale);
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+  }
+  .pfb-note-icon { color: var(--gold); font-weight: 700; font-size: 15px; line-height: 1.3; }
   .results-nine-label::after {
     content: '';
     flex: 1;
@@ -4841,9 +4940,197 @@ function pfRenderMatchup(tm, hdr, round) {
   return html;
 }
 
+
+/* ================= PLAYOFF BRACKET =================
+   Reads the playoff_results sheet and renders a 6-team bracket (seeds 1-6,
+   top two seeded on byes into the semifinals). Live gviz drops the sheet's
+   top header row (round titles) and keeps rows 1-8 as scRows[0..7]; the QF /
+   SF / Final blocks share those row bands across three column groups:
+     Quarterfinals  cols 0-7   (results 0/5, teams 3/4)
+     Semifinals     cols 9-16  (results 9/14, teams 12/13)
+     Finals         cols 18-25 (teams 21/22)
+   Row band A = scRows[0-3] (course, seed labels, two player rows) holds QF1,
+   SF1 and the final's slot; row band B = scRows[4-7] holds QF2, SF2.
+   Semifinal opponents are set by reseeding after both quarterfinals, so a QF
+   winner isn't wired to a fixed semifinal slot — it's shown as "advanced". */
+
+function pfbCell(rows, r, c) {
+  const row = rows[r];
+  if (!row) return '';
+  const v = row[c];
+  return (v === null || v === undefined) ? '' : String(v).trim();
+}
+function pfbSeed(v) {
+  const m = String(v || '').match(/(\d+)\s*seed/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+// "4 up" -> +4, "2 down" -> -2, "A.S."/halved -> 0, blank -> null
+function pfbMargin(v) {
+  const s = String(v || '').trim();
+  if (!s) return null;
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(up|down)/i);
+  if (m) return (m[2].toLowerCase() === 'down' ? -1 : 1) * parseFloat(m[1]);
+  if (/^(a\.?\s*s\.?|halved|tied?|even)$/i.test(s)) return 0;
+  return null;
+}
+function pfbTeamName(p1, p2) {
+  const a = lastName(String(p1 || '').trim()), b = lastName(String(p2 || '').trim());
+  return (a && b) ? (a + ' & ' + b) : (a || b || '');
+}
+function pfbFmtDate(v) {
+  const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(v || '').trim();
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// One head-to-head team match from a row band + a column block.
+// band = {course, label, p1, p2} row indices; cols = {ra, ta, rb, tb}.
+function pfbParseMatch(scRows, band, cols) {
+  const teamA = pfbTeamName(pfbCell(scRows, band.p1, cols.ta), pfbCell(scRows, band.p2, cols.ta));
+  const teamB = pfbTeamName(pfbCell(scRows, band.p1, cols.tb), pfbCell(scRows, band.p2, cols.tb));
+  const seedA = pfbSeed(pfbCell(scRows, band.label, cols.ta));
+  const seedB = pfbSeed(pfbCell(scRows, band.label, cols.tb));
+  let marginA = null, marginB = null;
+  if (cols.ra !== null) {
+    const a1 = pfbMargin(pfbCell(scRows, band.p1, cols.ra)), a2 = pfbMargin(pfbCell(scRows, band.p2, cols.ra));
+    const b1 = pfbMargin(pfbCell(scRows, band.p1, cols.rb)), b2 = pfbMargin(pfbCell(scRows, band.p2, cols.rb));
+    if (a1 !== null || a2 !== null) marginA = (a1 || 0) + (a2 || 0);
+    if (b1 !== null || b2 !== null) marginB = (b1 || 0) + (b2 || 0);
+  }
+  const played = marginA !== null || marginB !== null;
+  let winner = null;
+  if (played && marginA !== null) winner = marginA > 0 ? 'A' : marginA < 0 ? 'B' : null;
+  const course = band.course !== null ? pfbCell(scRows, band.course, cols.ta) : '';
+  const date   = band.course !== null ? pfbCell(scRows, band.course, cols.ta + 1) : '';
+  return { teamA, teamB, seedA, seedB, marginA, marginB, played, winner,
+           course, date: pfbFmtDate(date) };
+}
+
+function parsePlayoffBracket(scRows) {
+  const QF = { ra: 0, ta: 3, rb: 5, tb: 4 };   // teamA col3 (result col0), teamB col4 (result col5)
+  const SF = { ra: 9, ta: 12, rb: 14, tb: 13 }; // bye team col12, opponent col13
+
+  // Find the two quarterfinal label rows by their "N seed" cell in col 3, so the
+  // parse doesn't depend on whether the live feed keeps or drops the sheet's top
+  // rows. Each label row anchors a band: course above it, two player rows below.
+  const labelRows = [];
+  for (let i = 0; i < scRows.length; i++) {
+    if (/\d+\s*seed/i.test(pfbCell(scRows, i, QF.ta))) labelRows.push(i);
+  }
+  const mkBand = li => ({ course: li - 1, label: li, p1: li + 1, p2: li + 2 });
+  const bandA = labelRows[0] != null ? mkBand(labelRows[0]) : { course: 0, label: 1, p1: 2, p2: 3 };
+  const bandB = labelRows[1] != null ? mkBand(labelRows[1]) : { course: 4, label: 5, p1: 6, p2: 7 };
+
+  const qf1 = pfbParseMatch(scRows, bandA, QF);
+  const qf2 = pfbParseMatch(scRows, bandB, QF);
+
+  // Semifinals share the same row bands (the bye team's seed label sits in col12
+  // of the same label rows); the opponent (col13) is blank until reseeding.
+  const sf1 = pfbParseMatch(scRows, bandA, SF);
+  const sf2 = pfbParseMatch(scRows, bandB, SF);
+
+  return { qf: [qf1, qf2], sf: [sf1, sf2] };
+}
+
+function pfbTeamRow(team, seed, isWinner, isTBD) {
+  const seedChip = (seed != null && !isTBD) ? `<span class="pfb-seed">${seed}</span>` : `<span class="pfb-seed pfb-seed-empty"></span>`;
+  const name = isTBD ? `<span class="pfb-name pfb-tbd">TBD</span>` : `<span class="pfb-name">${team || 'TBD'}</span>`;
+  const check = isWinner ? `<span class="pfb-check">✓</span>` : `<span class="pfb-check"></span>`;
+  return `<div class="pfb-team${isWinner ? ' pfb-win' : ''}">${seedChip}${name}${check}</div>`;
+}
+
+function pfbMatchCard(m, opts) {
+  opts = opts || {};
+  const aTBD = !m.teamA, bTBD = !m.teamB;
+  let meta = '';
+  if (opts.metaOverride) meta = opts.metaOverride;
+  else if (m.course || m.date) meta = [m.course, m.date].filter(Boolean).join(' · ');
+  else if (opts.pending) meta = 'To be scheduled';
+  const metaHtml = meta ? `<div class="pfb-meta">${meta}</div>` : '';
+  return `<div class="pfb-match">
+    ${metaHtml}
+    ${pfbTeamRow(m.teamA, m.seedA, m.winner === 'A', aTBD)}
+    ${pfbTeamRow(m.teamB, m.seedB, m.winner === 'B', bTBD)}
+  </div>`;
+}
+
+function renderPlayoffBracket(b) {
+  // Which QF winners have advanced (awaiting reseed into the semis).
+  const advanced = [];
+  b.qf.forEach(m => {
+    if (m.winner) {
+      const t = m.winner === 'A' ? m.teamA : m.teamB;
+      const s = m.winner === 'A' ? m.seedA : m.seedB;
+      if (t) advanced.push({ team: t, seed: s });
+    }
+  });
+
+  const qfCards = b.qf.map(m => pfbMatchCard(m, { pending: !m.played })).join('');
+
+  // Semifinal cards: the bye seed's team vs its (still-TBD) opponent.
+  const sfCards = b.sf.map(m => {
+    // teamA is the bye team; teamB is the opponent (TBD until reseed)
+    const seedTeam = { teamA: m.teamA, seedA: m.seedA, teamB: '', seedB: null, winner: null };
+    return pfbMatchCard(seedTeam, { metaOverride: 'Bye · awaiting opponent' });
+  }).join('');
+
+  const finalCard = pfbMatchCard(
+    { teamA: '', teamB: '', seedA: null, seedB: null, winner: null },
+    { metaOverride: 'Loggers Trail' }
+  );
+
+  let note = '';
+  if (advanced.length) {
+    const names = advanced.map(a => `(${a.seed}) ${a.team}`).join(' and ');
+    const plural = advanced.length > 1;
+    note = `Quarterfinal winners are reseeded once both matches finish — the #1 seed draws the lowest remaining seed. `
+         + `${names} ${plural ? 'have' : 'has'} advanced and await${plural ? '' : 's'} a semifinal seeding.`;
+  } else {
+    note = `Quarterfinal winners are reseeded — the #1 seed draws the lowest remaining seed.`;
+  }
+
+  return `<div class="pfb-wrap">
+    <div class="section-title"><span class="dot"></span>Playoff Bracket</div>
+    <div class="pfb-scroll">
+      <div class="pfb-col">
+        <div class="pfb-col-title">Quarterfinals</div>
+        ${qfCards}
+      </div>
+      <div class="pfb-col pfb-col-center">
+        <div class="pfb-col-title">Semifinals</div>
+        ${sfCards}
+      </div>
+      <div class="pfb-col pfb-col-center">
+        <div class="pfb-col-title">Championship</div>
+        ${finalCard}
+      </div>
+    </div>
+    <div class="pfb-note"><span class="pfb-note-icon">↻</span>${note}</div>
+  </div>`;
+}
+
+async function loadPlayoffBracketHtml() {
+  try {
+    const rows = tableRows(await fetchSheet('playoff_results'));
+    if (!rows || rows.length < 4) return '';
+    const b = parsePlayoffBracket(rows);
+    // Only render if we actually got the seeded teams (guards against a shifted feed)
+    if (!b.qf[0].teamA && !b.qf[0].teamB) return '';
+    return renderPlayoffBracket(b);
+  } catch (e) {
+    return '';   // bracket is a bonus; never block the scorecard
+  }
+}
+
 async function loadPlayoffs() {
   const container = document.getElementById('playoff-content');
   const sections = [];
+
+  // Bracket overview first (from playoff_results), then the detailed scorecards.
+  const bracketHtml = await loadPlayoffBracketHtml();
+  if (bracketHtml) sections.push(bracketHtml);
+
   for (const round of PLAYOFF_ROUNDS) {
     let scRows;
     try { scRows = tableRows(await fetchSheet(round.sheet)); }
