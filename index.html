@@ -5206,7 +5206,7 @@ function renderPlayoffBracket(b) {
   let sfInner, note;
   if (sfSet) {
     sfInner = b.sf.map(m => pfbMatchCard(m, { pending: !m.played })).join('');
-    note = `Each semifinal winner advances to the championship at Loggers Trail.`;
+    note = `Each semifinal winner advances to the championship.`;
   } else {
     const semis = [];
     b.sf.forEach(m => { if (m.teamA) semis.push({ team: m.teamA, seed: m.seedA, tag: 'Bye' }); });
@@ -5236,7 +5236,7 @@ function renderPlayoffBracket(b) {
 
   const finalCard = pfbMatchCard(
     { teamA: '', teamB: '', seedA: null, seedB: null, winner: null },
-    { metaOverride: 'Loggers Trail' }
+    {}
   );
 
   return `<div class="pfb-wrap">
