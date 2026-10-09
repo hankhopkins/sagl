@@ -4765,10 +4765,11 @@ function renderProfile(name, h) {
    differential and its own hole-handicap index. Styling is reused from
    Matchups (Front 9 + Back 9 tables). */
 
-const PLAYOFF_ROUNDS = [
-  { label: 'Quarterfinals', sheet: 'quarterfinals_sc' }
-  // Semifinals / Championship rounds get added here as they go live.
-];
+// The live round's scorecard sheet. Its name is historical — it carries
+// whichever round is currently being played (quarterfinals, then semifinals,
+// ...). The round heading is resolved from the bracket by matching player
+// names, so it stays correct as rounds advance without renaming the sheet.
+const PLAYOFF_SCORECARD_SHEETS = ['quarterfinals_sc'];
 
 function pfNum(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -4889,8 +4890,9 @@ function pfBuildMatchRange(block, hdcpArr, start, len) {
 
 // A card -> one or two "nine" render objects (a 'Both' card yields front+back).
 function pfCardToNines(card) {
+  const tee = pfCardTee(card);
   const mk = (label, start, len) => ({
-    label,
+    label, tee,
     rating: card.rating, slope: card.slope,
     holes: card.holes.slice(start, start + len),
     par:   card.par.slice(start, start + len),
@@ -4937,8 +4939,9 @@ function pfRenderNine(nine) {
   const hasV = v => v !== null && v !== undefined && v !== '';
   const extra = (hasV(nine.rating) || hasV(nine.slope))
     ? ` &nbsp;·&nbsp; Rating ${nine.rating} &nbsp;·&nbsp; Slope ${nine.slope}` : '';
+  const teeHtml = (nine.showTee && nine.tee) ? ' ' + teeBadge(nine.tee) : '';
 
-  let html = `<div class="playoff-nine-label">${nine.label}${extra}</div>
+  let html = `<div class="playoff-nine-label">${nine.label}${teeHtml}${extra}</div>
   <div class="sc-wrap"><table class="sc-table"><thead><tr>
     <th>Hole</th><th></th><th class="sc-coursehdcp-col"></th>
     ${holes.map(h => '<th>' + h + '</th>').join('')}<th></th><th></th>
@@ -4982,6 +4985,42 @@ function pfGroupCards(cards) {
   return groups;
 }
 
+// Last-name set of a bracket team string ("Leadley & Mullins" -> leadley,mullins).
+function pfbPlayersOf(m) {
+  const s = new Set();
+  [m.teamA, m.teamB].forEach(t => String(t || '').split('&').forEach(x => {
+    const n = x.trim().toLowerCase(); if (n) s.add(n);
+  }));
+  return s;
+}
+
+// Build a lookup of round label -> player-name set from the parsed bracket, so a
+// scorecard group can be labelled by whichever round its players belong to (the
+// scorecard sheet name doesn't change as rounds advance).
+function pfRoundIndex(b) {
+  const out = [];
+  const add = (label, order, m) => out.push({ label, order, set: pfbPlayersOf(m) });
+  if (b) {
+    b.qf.forEach(m => add('Quarterfinals', 1, m));
+    b.sf.forEach(m => add('Semifinals', 2, m));
+  }
+  return out;
+}
+
+// Resolve a scorecard group's round by best player-name overlap with the bracket.
+function pfResolveRound(group, rounds) {
+  const names = new Set();
+  group.forEach(card => card.blocks.forEach(bl => {
+    [bl.p1name, bl.p2name].forEach(n => { const ln = lastName(n).toLowerCase(); if (ln) names.add(ln); });
+  }));
+  let best = null, bestOv = 0;
+  rounds.forEach(r => {
+    let ov = 0; names.forEach(n => { if (r.set.has(n)) ov++; });
+    if (ov > bestOv) { bestOv = ov; best = r; }
+  });
+  return (best && bestOv >= 2) ? { label: best.label, order: best.order } : { label: 'Playoffs', order: 9 };
+}
+
 // Render one team matchup: its team title + tee, then a table per nine (Front
 // 9 from the front card, Back 9 from the back card).
 function pfRenderGroup(cards, round) {
@@ -4992,14 +5031,19 @@ function pfRenderGroup(cards, round) {
   const a1 = lastName(bA ? bA.p1name : ''), a2 = lastName(bA ? bA.p2name : '');
   const b1 = bB ? lastName(bB.p1name) : '', b2 = bB ? lastName(bB.p2name) : '';
   const teamLabel = (b1 && b2) ? `${a1} & ${b1} vs ${a2} & ${b2}` : `${a1} vs ${a2}`;
-  const courseName = ref.course || round.course || '';
-  const teeColor = pfCardTee(ref);
+  const courseName = ref.course || (round && round.course) || '';
+  // One tee badge in the header when every nine shares a tee; otherwise show the
+  // tee per nine (e.g. Black front / Blue back), so it's never misreported.
+  const tees = [...new Set(nines.map(n => n.tee).filter(Boolean))];
+  const headerBadge = tees.length === 1 ? teeBadge(tees[0]) : '';
+  const perNineTee = tees.length > 1;
+  nines.forEach(n => { n.showTee = perNineTee; });
 
   let html = `<div class="playoff-card">
     <div class="sc-course-header">
       <div class="sc-course-left">
         <span class="sc-course-name">${teamLabel}</span>
-        ${teeBadge(teeColor)}
+        ${headerBadge}
       </div>
       <span class="sc-course-info">${courseName}</span>
     </div>`;
@@ -5141,43 +5185,59 @@ function pfbMatchCard(m, opts) {
 }
 
 function renderPlayoffBracket(b) {
-  const qfCards = b.qf.map(m => pfbMatchCard(m, { pending: !m.played })).join('');
-
-  // Semifinalists: the two byes, plus each QF winner that has advanced, plus a
-  // TBD slot for every quarterfinal still to be played. Shown as a pool because
-  // pairings are only set once every QF is final (the #1 seed draws the lowest
-  // remaining seed).
-  const semis = [];
-  b.sf.forEach(m => { if (m.teamA) semis.push({ team: m.teamA, seed: m.seedA, tag: 'Bye' }); });
+  // A reseeded QF winner shows up as a semifinal participant. When a QF has no
+  // recorded margin yet, infer its winner from who appears in the semifinals.
+  const sfPlayers = new Set();
+  b.sf.forEach(m => pfbPlayersOf(m).forEach(n => sfPlayers.add(n)));
   b.qf.forEach(m => {
-    if (m.winner) {
-      const win = m.winner === 'A';
-      semis.push({ team: win ? m.teamA : m.teamB, seed: win ? m.seedA : m.seedB, tag: 'Won QF', win: true });
-    } else {
-      semis.push({ team: '', seed: null, tag: '' });
+    if (!m.winner) {
+      const aIn = [...pfbPlayersOf({ teamA: m.teamA })].some(n => sfPlayers.has(n));
+      const bIn = [...pfbPlayersOf({ teamA: m.teamB })].some(n => sfPlayers.has(n));
+      if (aIn && !bIn) m.winner = 'A';
+      else if (bIn && !aIn) m.winner = 'B';
     }
   });
-  semis.sort((x, y) => ((x.team ? 0 : 1) - (y.team ? 0 : 1)) || ((x.seed || 99) - (y.seed || 99)));
-  const sfBlock = `<div class="pfb-match">
-    <div class="pfb-meta">Semifinalists · pairings pending</div>
-    ${semis.map(pfbSemiRow).join('')}
-  </div>`;
+
+  const qfCards = b.qf.map(m => pfbMatchCard(m, { pending: !m.played && !m.winner })).join('');
+
+  // Once reseeding has filled both semifinal opponents, show concrete head-to-
+  // head pairings. Before that, show a semifinalist pool (pairings pending).
+  const sfSet = b.sf.every(m => m.teamA && m.teamB);
+  let sfInner, note;
+  if (sfSet) {
+    sfInner = b.sf.map(m => pfbMatchCard(m, { pending: !m.played })).join('');
+    note = `Each semifinal winner advances to the championship at Loggers Trail.`;
+  } else {
+    const semis = [];
+    b.sf.forEach(m => { if (m.teamA) semis.push({ team: m.teamA, seed: m.seedA, tag: 'Bye' }); });
+    b.qf.forEach(m => {
+      if (m.winner) {
+        const win = m.winner === 'A';
+        semis.push({ team: win ? m.teamA : m.teamB, seed: win ? m.seedA : m.seedB, tag: 'Won QF', win: true });
+      } else {
+        semis.push({ team: '', seed: null, tag: '' });
+      }
+    });
+    semis.sort((x, y) => ((x.team ? 0 : 1) - (y.team ? 0 : 1)) || ((x.seed || 99) - (y.seed || 99)));
+    sfInner = `<div class="pfb-match">
+      <div class="pfb-meta">Semifinalists · pairings pending</div>
+      ${semis.map(pfbSemiRow).join('')}
+    </div>`;
+    const advanced = semis.filter(s => s.win && s.team);
+    if (advanced.length) {
+      const names = advanced.map(a => `(${a.seed}) ${a.team}`).join(' and ');
+      const plural = advanced.length > 1;
+      note = `Semifinal pairings are set by reseeding once every quarterfinal is final — the #1 seed draws the lowest remaining seed. `
+           + `${names} ${plural ? 'have' : 'has'} advanced to the semifinals.`;
+    } else {
+      note = `Semifinal pairings are set by reseeding once the quarterfinals finish — the #1 seed draws the lowest remaining seed.`;
+    }
+  }
 
   const finalCard = pfbMatchCard(
     { teamA: '', teamB: '', seedA: null, seedB: null, winner: null },
     { metaOverride: 'Loggers Trail' }
   );
-
-  const advanced = semis.filter(s => s.win && s.team);
-  let note;
-  if (advanced.length) {
-    const names = advanced.map(a => `(${a.seed}) ${a.team}`).join(' and ');
-    const plural = advanced.length > 1;
-    note = `Semifinal pairings are set by reseeding once every quarterfinal is final — the #1 seed draws the lowest remaining seed. `
-         + `${names} ${plural ? 'have' : 'has'} advanced to the semifinals.`;
-  } else {
-    note = `Semifinal pairings are set by reseeding once the quarterfinals finish — the #1 seed draws the lowest remaining seed.`;
-  }
 
   return `<div class="pfb-wrap">
     <div class="section-title"><span class="dot"></span>Playoff Bracket</div>
@@ -5188,7 +5248,7 @@ function renderPlayoffBracket(b) {
       </div>
       <div class="pfb-col pfb-col-center">
         <div class="pfb-col-title">Semifinals</div>
-        ${sfBlock}
+        ${sfInner}
       </div>
       <div class="pfb-col pfb-col-center">
         <div class="pfb-col-title">Championship</div>
@@ -5199,40 +5259,43 @@ function renderPlayoffBracket(b) {
   </div>`;
 }
 
-async function loadPlayoffBracketHtml() {
-  try {
-    const rows = tableRows(await fetchSheet('playoff_results'));
-    if (!rows || rows.length < 4) return '';
-    const b = parsePlayoffBracket(rows);
-    if (!b.qf[0].teamA && !b.qf[0].teamB) return '';   // guard against a shifted feed
-    return renderPlayoffBracket(b);
-  } catch (e) {
-    return '';   // bracket is a bonus; never block the scorecards
-  }
-}
-
 async function loadPlayoffs() {
   const container = document.getElementById('playoff-content');
   const sections = [];
 
-  // Bracket overview first (from playoff_results), then the detailed scorecards.
-  const bracketHtml = await loadPlayoffBracketHtml();
-  if (bracketHtml) sections.push(bracketHtml);
+  // Bracket (from playoff_results) — also used to label each scorecard's round.
+  let bracket = null;
+  try {
+    const rows = tableRows(await fetchSheet('playoff_results'));
+    if (rows && rows.length >= 4) {
+      const b = parsePlayoffBracket(rows);
+      if (b.qf[0].teamA || b.qf[0].teamB) { bracket = b; sections.push(renderPlayoffBracket(b)); }
+    }
+  } catch (e) { /* bracket is a bonus; never block the scorecards */ }
 
-  for (const round of PLAYOFF_ROUNDS) {
+  // Scorecards, grouped and labelled by the round their players belong to.
+  const rounds = pfRoundIndex(bracket);
+  const collected = [];   // { order, label, html }
+  for (const sheet of PLAYOFF_SCORECARD_SHEETS) {
     let scRows;
-    try { scRows = tableRows(await fetchSheet(round.sheet)); }
+    try { scRows = tableRows(await fetchSheet(sheet)); }
     catch (e) { continue; }                       // round sheet not present yet
     if (!scRows || scRows.length < 4) continue;
     const groups = pfGroupCards(pfFindCards(scRows))
       .filter(g => g[0] && g[0].blocks.length && g[0].blocks[0].p1name);
-    if (!groups.length) continue;
-
-    let html = `<div class="playoff-round"><div class="section-title"><span class="dot"></span>${round.label}</div>`;
-    for (const g of groups) html += pfRenderGroup(g, round);
-    html += `</div>`;
-    sections.push(html);
+    for (const g of groups) {
+      const r = pfResolveRound(g, rounds);
+      collected.push({ order: r.order, label: r.label, html: pfRenderGroup(g, null) });
+    }
   }
+
+  const byLabel = {};
+  collected.forEach(c => { (byLabel[c.label] = byLabel[c.label] || { order: c.order, items: [] }).items.push(c.html); });
+  Object.keys(byLabel)
+    .sort((a, b) => byLabel[a].order - byLabel[b].order)
+    .forEach(label => {
+      sections.push(`<div class="playoff-round"><div class="section-title"><span class="dot"></span>${label}</div>${byLabel[label].items.join('')}</div>`);
+    });
 
   if (!sections.length) {
     container.innerHTML = '<div class="loading-msg" style="padding:2.5rem;text-align:center;color:var(--mid-gray);font-style:italic;">No playoff matchups posted yet — check back once the bracket is set.</div>';
