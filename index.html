@@ -993,6 +993,26 @@
   }
   .pfb-tag-win { color: var(--green-dark); background: var(--gold-pale); border-color: var(--gold-light); }
   .pfb-advanced { background: rgba(45,90,61,0.06); }
+  .pfb-side + .pfb-side { border-top: 1px solid var(--border); }
+  .pfb-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 10px 8px 39px;
+    background: rgba(0,0,0,0.015);
+  }
+  .pfb-win + .pfb-lines { background: rgba(45,90,61,0.05); }
+  .pfb-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: var(--mid-gray);
+  }
+  .pfb-ln-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--charcoal); }
+  .pfb-ln-res { flex-shrink: 0; font-weight: 700; color: var(--green-mid); min-width: 46px; text-align: right; }
+  .pfb-ln-gn { flex-shrink: 0; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
   .pfb-advanced .pfb-name { font-weight: 700; color: var(--green-dark); }
   .pfb-note {
     margin-top: 12px;
@@ -5003,6 +5023,7 @@ function pfRoundIndex(b) {
   if (b) {
     b.qf.forEach(m => add('Quarterfinals', 1, m));
     b.sf.forEach(m => add('Semifinals', 2, m));
+    if (b.final) add('Championship', 3, b.final);
   }
   return out;
 }
@@ -5129,13 +5150,31 @@ function pfbParseMatch(scRows, band, cols) {
   if (played && marginA !== null) winner = marginA > 0 ? 'A' : marginA < 0 ? 'B' : null;
   const course = band.course !== null ? pfbCell(scRows, band.course, cols.ta) : '';
   const date   = band.course !== null ? pfbCell(scRows, band.course, cols.ta + 1) : '';
+  // Per-player result / gross / net: result sits in the result column, gross and
+  // net in the two columns after it (same layout for both team sides).
+  const playersA = (cols.ra !== null) ? pfbParsePlayers(scRows, band, cols.ra, cols.ta) : [];
+  const playersB = (cols.ra !== null) ? pfbParsePlayers(scRows, band, cols.rb, cols.tb) : [];
   return { teamA, teamB, seedA, seedB, marginA, marginB, played, winner,
-           course, date: pfbFmtDate(date) };
+           course, date: pfbFmtDate(date), playersA, playersB };
+}
+
+// Read the two players' result/gross/net for one team side of a match.
+function pfbParsePlayers(scRows, band, rCol, nameCol) {
+  const out = [];
+  [band.p1, band.p2].forEach(ri => {
+    const name   = pfbCell(scRows, ri, nameCol);
+    const result = pfbCell(scRows, ri, rCol);
+    const gross  = pfbCell(scRows, ri, rCol + 1);
+    const net    = pfbCell(scRows, ri, rCol + 2);
+    if (name || result || gross || net) out.push({ name, result, gross, net });
+  });
+  return out;
 }
 
 function parsePlayoffBracket(scRows) {
-  const QF = { ra: 0, ta: 3, rb: 5, tb: 4 };    // teamA col3 (result col0), teamB col4 (result col5)
-  const SF = { ra: 9, ta: 12, rb: 14, tb: 13 }; // bye team col12, opponent col13
+  const QF  = { ra: 0,  ta: 3,  rb: 5,  tb: 4 };  // teamA col3 (result col0), teamB col4 (result col5)
+  const SF  = { ra: 9,  ta: 12, rb: 14, tb: 13 }; // bye team col12, opponent col13
+  const FIN = { ra: 18, ta: 21, rb: 23, tb: 22 }; // finalists col21 / col22 (results col18 / col23)
 
   const labelRows = [];
   for (let i = 0; i < scRows.length; i++) {
@@ -5149,8 +5188,10 @@ function parsePlayoffBracket(scRows) {
   const qf2 = pfbParseMatch(scRows, bandB, QF);
   const sf1 = pfbParseMatch(scRows, bandA, SF);
   const sf2 = pfbParseMatch(scRows, bandB, SF);
+  // The final shares band A's rows (course/label/player rows) in the Finals cols.
+  const final = pfbParseMatch(scRows, bandA, FIN);
 
-  return { qf: [qf1, qf2], sf: [sf1, sf2] };
+  return { qf: [qf1, qf2], sf: [sf1, sf2], final };
 }
 
 function pfbTeamRow(team, seed, isWinner, isTBD) {
@@ -5169,6 +5210,20 @@ function pfbSemiRow(s) {
   return `<div class="pfb-team${s.win ? ' pfb-advanced' : ''}">${seedChip}${name}${tag}</div>`;
 }
 
+// Per-player result / gross / net lines shown under a team (only once scored).
+function pfbLines(players) {
+  const rows = (players || []).filter(p => p.result || p.gross || p.net).map(p => {
+    const nm = lastName(p.name) || p.name || '';
+    const gn = (p.gross || p.net) ? `${p.gross || '—'} / ${p.net || '—'}` : '';
+    return `<div class="pfb-line">`
+      + `<span class="pfb-ln-name">${nm}</span>`
+      + `<span class="pfb-ln-res">${p.result || ''}</span>`
+      + `<span class="pfb-ln-gn">${gn}</span>`
+      + `</div>`;
+  });
+  return rows.length ? `<div class="pfb-lines">${rows.join('')}</div>` : '';
+}
+
 function pfbMatchCard(m, opts) {
   opts = opts || {};
   const aTBD = !m.teamA, bTBD = !m.teamB;
@@ -5177,11 +5232,9 @@ function pfbMatchCard(m, opts) {
   else if (m.course || m.date) meta = [m.course, m.date].filter(Boolean).join(' · ');
   else if (opts.pending) meta = 'To be scheduled';
   const metaHtml = meta ? `<div class="pfb-meta">${meta}</div>` : '';
-  return `<div class="pfb-match">
-    ${metaHtml}
-    ${pfbTeamRow(m.teamA, m.seedA, m.winner === 'A', aTBD)}
-    ${pfbTeamRow(m.teamB, m.seedB, m.winner === 'B', bTBD)}
-  </div>`;
+  const sideA = `<div class="pfb-side">${pfbTeamRow(m.teamA, m.seedA, m.winner === 'A', aTBD)}${pfbLines(m.playersA)}</div>`;
+  const sideB = `<div class="pfb-side">${pfbTeamRow(m.teamB, m.seedB, m.winner === 'B', bTBD)}${pfbLines(m.playersB)}</div>`;
+  return `<div class="pfb-match">${metaHtml}${sideA}${sideB}</div>`;
 }
 
 function renderPlayoffBracket(b) {
@@ -5234,10 +5287,21 @@ function renderPlayoffBracket(b) {
     }
   }
 
-  const finalCard = pfbMatchCard(
-    { teamA: '', teamB: '', seedA: null, seedB: null, winner: null },
-    {}
-  );
+  // Championship: show the real final once its participants are set; update the
+  // note to match (champion if decided, else the matchup).
+  const fin = b.final;
+  let finalCard;
+  if (fin && (fin.teamA || fin.teamB)) {
+    finalCard = pfbMatchCard(fin, { pending: !fin.played });
+    if (fin.winner) {
+      const champ = fin.winner === 'A' ? fin.teamA : fin.teamB;
+      note = `${champ} win the Stone Arch Golf League championship.`;
+    } else if (fin.teamA && fin.teamB) {
+      note = `Championship: ${fin.teamA} vs ${fin.teamB}.`;
+    }
+  } else {
+    finalCard = pfbMatchCard({ teamA: '', teamB: '', seedA: null, seedB: null, winner: null }, {});
+  }
 
   return `<div class="pfb-wrap">
     <div class="section-title"><span class="dot"></span>Playoff Bracket</div>
