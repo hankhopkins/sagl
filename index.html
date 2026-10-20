@@ -1013,6 +1013,54 @@
   .pfb-ln-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--charcoal); }
   .pfb-ln-res { flex-shrink: 0; font-weight: 700; color: var(--green-mid); min-width: 46px; text-align: right; }
   .pfb-ln-gn { flex-shrink: 0; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+  /* Championship winner — celebratory treatment */
+  .pfb-champ {
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    background: linear-gradient(162deg, var(--gold-pale) 0%, #fffdf7 55%, #fff 100%);
+    box-shadow: 0 6px 22px rgba(201,168,76,0.22);
+    padding: 15px 14px 12px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .pfb-champ::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(120px 60px at 50% 0%, rgba(201,168,76,0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .pfb-champ-ribbon {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700;
+    color: #9a7b22;
+  }
+  .pfb-champ-trophy { font-size: 16px; filter: drop-shadow(0 1px 1px rgba(154,123,34,0.35)); }
+  .pfb-champ-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 700; line-height: 1.12;
+    color: var(--green-dark);
+    margin-top: 7px;
+  }
+  .pfb-champ-seed {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--gold); color: var(--green-dark);
+    font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 700;
+    vertical-align: middle; margin-right: 6px; transform: translateY(-2px);
+  }
+  .pfb-champ-sub { font-size: 11px; color: var(--mid-gray); margin-top: 4px; }
+  .pfb-champ-meta {
+    font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--mid-gray); margin-top: 3px;
+  }
+  .pfb-champ-detail {
+    margin-top: 11px; text-align: left;
+    border-top: 1px solid var(--gold-light); padding-top: 9px;
+  }
+  .pfb-champ-teamlabel { font-size: 11px; font-weight: 700; color: var(--mid-gray); margin: 2px 0 1px; }
+  .pfb-champ-teamlabel.win { color: var(--green-dark); }
+  .pfb-champ .pfb-lines { padding: 2px 4px 6px 4px; background: none; }
   .pfb-advanced .pfb-name { font-weight: 700; color: var(--green-dark); }
   .pfb-note {
     margin-top: 12px;
@@ -1152,7 +1200,7 @@
   <div class="header-eyebrow">Season Four · 2026</div>
   <div class="header-title">Stone Arch Golf League</div>
   <div class="header-sub">2v2 Match Play &nbsp;·&nbsp; 8 Teams &nbsp;·&nbsp; 8 Weeks</div>
-  <div><span class="champion-badge">🏆 Reigning Champions: Hopkins &amp; Mugford</span></div>
+  <div><span class="champion-badge" id="champion-badge">🏆 Reigning Champions: Leadley &amp; Mullins</span></div>
 </header>
 
 <nav id="main-nav" role="navigation" aria-label="Main navigation">
@@ -5237,6 +5285,32 @@ function pfbMatchCard(m, opts) {
   return `<div class="pfb-match">${metaHtml}${sideA}${sideB}</div>`;
 }
 
+// Celebratory championship card shown once the final has a winner.
+function pfbChampionCard(fin) {
+  const win = fin.winner === 'A';
+  const champTeam = win ? fin.teamA : fin.teamB;
+  const loseTeam  = win ? fin.teamB : fin.teamA;
+  const champSeed = win ? fin.seedA : fin.seedB;
+  const champPlayers = win ? fin.playersA : fin.playersB;
+  const losePlayers  = win ? fin.playersB : fin.playersA;
+  const meta = [fin.course, fin.date].filter(Boolean).join(' · ');
+  const seedChip = champSeed != null ? `<span class="pfb-champ-seed">${champSeed}</span>` : '';
+  const detail = (pfbLines(champPlayers) || pfbLines(losePlayers))
+    ? `<div class="pfb-champ-detail">
+        <div class="pfb-champ-teamlabel win">${champTeam}</div>
+        ${pfbLines(champPlayers)}
+        ${loseTeam ? `<div class="pfb-champ-teamlabel">${loseTeam}</div>${pfbLines(losePlayers)}` : ''}
+      </div>`
+    : '';
+  return `<div class="pfb-champ">
+    <div class="pfb-champ-ribbon"><span class="pfb-champ-trophy">🏆</span>League Champions</div>
+    <div class="pfb-champ-name">${seedChip}${champTeam}</div>
+    ${loseTeam ? `<div class="pfb-champ-sub">def. ${loseTeam}</div>` : ''}
+    ${meta ? `<div class="pfb-champ-meta">${meta}</div>` : ''}
+    ${detail}
+  </div>`;
+}
+
 function renderPlayoffBracket(b) {
   // A reseeded QF winner shows up as a semifinal participant. When a QF has no
   // recorded margin yet, infer its winner from who appears in the semifinals.
@@ -5291,14 +5365,13 @@ function renderPlayoffBracket(b) {
   // note to match (champion if decided, else the matchup).
   const fin = b.final;
   let finalCard;
-  if (fin && (fin.teamA || fin.teamB)) {
+  if (fin && fin.winner) {
+    finalCard = pfbChampionCard(fin);
+    const champ = fin.winner === 'A' ? fin.teamA : fin.teamB;
+    note = `${champ} are the Stone Arch Golf League champions.`;
+  } else if (fin && (fin.teamA || fin.teamB)) {
     finalCard = pfbMatchCard(fin, { pending: !fin.played });
-    if (fin.winner) {
-      const champ = fin.winner === 'A' ? fin.teamA : fin.teamB;
-      note = `${champ} win the Stone Arch Golf League championship.`;
-    } else if (fin.teamA && fin.teamB) {
-      note = `Championship: ${fin.teamA} vs ${fin.teamB}.`;
-    }
+    if (fin.teamA && fin.teamB) note = `Championship: ${fin.teamA} vs ${fin.teamB}.`;
   } else {
     finalCard = pfbMatchCard({ teamA: '', teamB: '', seedA: null, seedB: null, winner: null }, {});
   }
@@ -5334,6 +5407,12 @@ async function loadPlayoffs() {
     if (rows && rows.length >= 4) {
       const b = parsePlayoffBracket(rows);
       if (b.qf[0].teamA || b.qf[0].teamB) { bracket = b; sections.push(renderPlayoffBracket(b)); }
+      // Crown the reigning champions site-wide once the final has a winner.
+      if (bracket && bracket.final && bracket.final.winner) {
+        const champ = bracket.final.winner === 'A' ? bracket.final.teamA : bracket.final.teamB;
+        const badge = document.getElementById('champion-badge');
+        if (badge && champ) badge.innerHTML = '🏆 Reigning Champions: ' + champ;
+      }
     }
   } catch (e) { /* bracket is a bonus; never block the scorecards */ }
 
